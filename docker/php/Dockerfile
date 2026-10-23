@@ -14,6 +14,7 @@ COPY php.ini /usr/local/etc/php/conf.d/app.ini
 # Roda como o mesmo UID/GID do host para que os arquivos criados no volume não fiquem com dono root.
 RUN groupmod -o -g ${GID} www-data && usermod -o -u ${UID} -g ${GID} www-data
 
-ENV COMPOSER_HOME=/tmp/composer
+ENV COMPOSER_HOME=/tmp/composer \
+    XDG_CONFIG_HOME=/tmp/config
 USER www-data
 WORKDIR /var/www/html

@@ -1,14 +1,14 @@
 # Progresso
 
-Última atualização: 23/10/2026, ao fim da Fase 1.
+Última atualização: 23/10/2026, ao fim da Fase 2.
 
 ## Situação
 
 | Fase | Escopo | Situação |
 |---|---|---|
-| 1 | Setup, layout, autenticação, usuários, perfis/permissões, auditoria base | **Concluída**, aguardando aprovação |
-| 2 | Cadastros auxiliares e ativos | Próxima |
-| 3 | Planos recorrentes, geração de ocorrências, comando agendado | — |
+| 1 | Setup, layout, autenticação, usuários, perfis/permissões, auditoria base | Concluída (commit `6a8e870`) |
+| 2 | Cadastros auxiliares e ativos | **Concluída**, aguardando aprovação |
+| 3 | Planos recorrentes, geração de ocorrências, comando agendado | Próxima |
 | 4 | Execução, não programada, anexos, cancelamento/reagendamento, correção de valor | — |
 | 5 | Dashboard e visão unificada (lista, calendário, exportação) | — |
 | 6 | Revisão de segurança e performance, README completo | — |
@@ -27,24 +27,29 @@
 - **Tabela `cidades`** já criada (necessária para vincular usuários); a tela de cadastro vem na Fase 2.
 - **Testes**: 54 testes, 155 asserções (login, limite de tentativas, lembrar-me, inativo, senha, usuários, perfis, proteção, menu por permissão, auditoria, comando, dinheiro).
 
-## Próximos passos (Fase 2)
+## Fase 2: o que foi feito
 
-1. Cadastros: cidades, responsáveis (com usuário opcional), tipos de equipamento, fornecedores (CPF/CNPJ com dígito verificador). CRUD + ativar/inativar; exclusão bloqueada quando em uso. Permissão `cadastros.gerenciar`.
-2. Ativos: migration com índices (cidade, tipo, responsável, status), soft delete, foto em disco privado, `criado_por`; listagem com busca, filtros e paginação; tela de detalhes (planos e histórico entram nas fases 3 e 4).
-3. Escopo por cidade: scope `visivelPara($user)` + `AtivoPolicy`; testes de troca de ID na URL.
-4. Auditoria: registrar os novos models em `Auditoria::TIPOS`; evento `restaurado` para soft delete se houver restauração.
+- **Cadastros auxiliares** (`cadastros.gerenciar`, rotas `cadastros.*`): cidades (nome + UF única, lista de UFs), tipos de equipamento (nome único; seeder com Ar-condicionado, Gerador, Bebedouro industrial e Nobreak), responsáveis (usuário do sistema opcional, no máximo um responsável por usuário) e fornecedores (CPF ou CNPJ opcional, validado e único, inclusive CNPJ alfanumérico). CRUD com ativar/inativar pela edição.
+- **Exclusão protegida**: `ExclusaoProtegida` tenta excluir e, se uma FK `RESTRICT` impedir (erro 1451), devolve a mensagem "há registros vinculados, inative". Vale para ativos excluídos logicamente e para usuários vinculados a cidades.
+- **Inativos**: trait `CadastroAuxiliar` (`selecionaveis()` / `regraSelecionavel()`) tira os inativos dos selects e da validação de novos vínculos, mas mantém o valor já gravado num registro em edição.
+- **Ativos**: tabela com índices, soft delete, `criado_por`, status como enum `StatusAtivo`; listagem com busca (patrimônio, marca, modelo, série, local), filtros (cidade, tipo, responsável, status) e paginação; detalhes; foto opcional em disco privado servida por rota autenticada.
+- **Escopo por cidade**: `Ativo::visivelPara($usuario)` nas listagens, `AtivoPolicy` (permissão + cidade) nas ações via `#[Authorize]`, cidade do formulário restrita às acessíveis e validada no backend.
+- **Testes**: 115 testes, 310 asserções (Fase 1 + cadastros, CPF/CNPJ, ativos, foto, patrimônio único com excluídos, inativos, troca de ID na URL em 5 rotas, menu por permissão).
+
+## Próximos passos (Fase 3)
+
+1. Migrations `planos_manutencao` e `manutencoes` (com `data_referencia`, chave única plano + data_referencia, índices de status/datas), FKs `restrictOnDelete()` para fornecedor.
+2. `GeradorOcorrencias`: cálculo de datas (dia 31, 29/02, data de término), geração no horizonte, recálculo ao editar plano (regras 1–4 abaixo), cancelamento ao inativar plano.
+3. Comando diário `manutencoes:estender-horizonte` no agendador (`routes/console.php`) e serviço `scheduler` no `compose.yaml`.
+4. Telas de planos (dentro do ativo), com média real e "atualizar valor médio" (regra 11).
+5. Ativo: ao mudar para inativo/baixado ou excluir, pedir confirmação e cancelar as pendentes (regra 3); seção de planos na tela de detalhes.
+6. Testes pesados de datas e de edição de plano.
 
 ## Modelo de dados planejado
 
-Tabelas já criadas: `users`, `perfis`, `permissoes`, `perfil_permissao`, `cidades`, `cidade_user`, `auditoria` (+ `sessions`, `cache`, `jobs` do Laravel). As demais, por fase:
+Tabelas já criadas: `users`, `perfis`, `permissoes`, `perfil_permissao`, `cidades`, `cidade_user`, `auditoria`, `tipos_equipamento`, `responsaveis`, `fornecedores`, `ativos` (+ `sessions`, `cache`, `jobs` do Laravel). As demais, por fase:
 
 ```
-responsaveis       id, nome, email?, telefone?, setor?, user_id?, ativo
-tipos_equipamento  id, nome(único), ativo
-fornecedores       id, nome, documento?(só dígitos, único), telefone?, email?, ativo
-ativos             id, tipo_equipamento_id, marca, modelo, numero_serie?, ano_fabricacao?, patrimonio(único),
-                   capacidade?, cidade_id, localizacao, responsavel_id?, data_aquisicao?,
-                   status(em_operacao|inativo|baixado), observacoes?, foto_path?, criado_por, deleted_at
 planos_manutencao  id, ativo_id, descricao, periodicidade_meses, data_inicio, data_termino?, valor_estimado,
                    fornecedor_id?, observacoes?, ativo, gerado_ate
 manutencoes        id, ativo_id, plano_id?, tipo(programada|nao_programada), data_referencia?, data_prevista?,
@@ -103,7 +108,21 @@ Respostas do usuário à proposta inicial (todas aprovadas em 23/10/2026):
 - **Campos de data** usam o seletor nativo (`type="date"`), que o navegador em pt-BR exibe como dd/mm/aaaa.
 - O `CLAUDE.md`/`AGENTS.md` de exemplo que vem no esqueleto do Laravel 13 (instruções do Laravel Boost) foi substituído pelo `CLAUDE.md` do projeto.
 
+### Tomadas na Fase 2 (não especificadas; avisadas ao usuário)
+
+- **Cadastros são globais**: quem tem `cadastros.gerenciar` gerencia todas as cidades, responsáveis, tipos e fornecedores (não há escopo por cidade nos cadastros; o escopo vale para ativos e tudo ligado a eles).
+- **Botão excluir sempre visível** nos cadastros; se o registro estiver em uso, a tela explica e sugere inativar (evita contar vínculos em cada linha).
+- **Tipos de equipamento iniciais** no seeder: os quatro citados na especificação.
+- **Responsável ↔ usuário**: um usuário do sistema pode estar vinculado a no máximo um responsável.
+- **CPF/CNPJ** é opcional, gravado sem máscara e em maiúsculas; aceita o CNPJ alfanumérico (IN RFB 2.229/2024, emitido desde jul/2026). A busca aceita o número com ou sem máscara.
+- **Foto do ativo**: JPG, PNG ou WebP até 5 MB, guardada em `storage/app/private/ativos/fotos`, entregue por `ativos/{ativo}/foto` com a mesma checagem de permissão e cidade dos detalhes.
+- **Ativo**: data de aquisição não pode ser futura; ano de fabricação entre 1950 e o ano seguinte ao atual.
+- **Usuário sem cidade vinculada** (e sem `dados.ver_todas_cidades`) não vê nenhum ativo.
+- **Cancelamento de ocorrências ao inativar, dar baixa ou excluir ativo** fica para a Fase 3, quando as ocorrências existirem.
+- **Campos de data**: seletor nativo (`type="date"`) centralizado em `x-campo-data`. Ele mostra dd/mm/aaaa quando o navegador está em português e mm/dd/aaaa quando está em inglês (verificado no Chromium). Pendente: o usuário decide se mantém ou troca por campo com máscara fixa dd/mm/aaaa.
+
 ## Observações para retomar
 
 - Containers: `docker compose up -d` na raiz; o PHP do host não serve para rodar o projeto.
-- Prints de verificação visual: Playwright via container `mcr.microsoft.com/playwright:v1.61.1-noble` com `--network host` (o Chromium do WSL não tem as bibliotecas do sistema).
+- Prints de verificação visual: Playwright via container `mcr.microsoft.com/playwright:v1.61.1-noble` com `--network host` (o Chromium do WSL não tem as bibliotecas do sistema). Para ver datas como um usuário brasileiro, lance o Chromium com `--lang=pt-BR`.
+- O banco de desenvolvimento tem dados de exemplo criados à mão (Campinas, Sorocaba, Itu inativa, 4 ativos, 2 fornecedores, 1 responsável). O seeder de demonstração oficial vem na Fase 5.

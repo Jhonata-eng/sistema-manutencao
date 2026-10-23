@@ -25,6 +25,10 @@ class Auditoria extends Model
         'usuario' => [User::class, 'Usuário'],
         'perfil' => [Perfil::class, 'Perfil'],
         'cidade' => [Cidade::class, 'Cidade'],
+        'tipo_equipamento' => [TipoEquipamento::class, 'Tipo de equipamento'],
+        'responsavel' => [Responsavel::class, 'Responsável'],
+        'fornecedor' => [Fornecedor::class, 'Fornecedor'],
+        'ativo' => [Ativo::class, 'Ativo'],
     ];
 
     public const EVENTOS = [

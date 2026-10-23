@@ -51,3 +51,11 @@ body {
 .navbar-brand {
     min-width: 0;
 }
+
+/* No celular as tabelas rolam na horizontal em vez de quebrar cada célula em várias linhas. */
+@media (max-width: 767.98px) {
+    .table-responsive > .table th,
+    .table-responsive > .table td {
+        white-space: nowrap;
+    }
+}

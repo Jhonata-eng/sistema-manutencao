@@ -9,7 +9,8 @@ use Illuminate\Support\Arr;
 
 /**
  * Grava na auditoria a criação, a edição e a exclusão do model, com os valores antes/depois.
- * Atributos ocultos ($hidden, ex.: senha) e timestamps nunca são gravados.
+ * Atributos ocultos ($hidden, ex.: senha) e timestamps nunca são gravados. A exclusão lógica
+ * (soft delete) também gera o evento "excluido".
  */
 trait Auditavel
 {
@@ -53,6 +54,6 @@ trait Auditavel
 
     protected function atributosAuditaveis(array $atributos): array
     {
-        return Arr::except($atributos, ['created_at', 'updated_at', ...$this->getHidden()]);
+        return Arr::except($atributos, ['created_at', 'updated_at', 'deleted_at', ...$this->getHidden()]);
     }
 }

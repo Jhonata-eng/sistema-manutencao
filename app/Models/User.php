@@ -53,6 +53,20 @@ class User extends Authenticatable
         return $this->temPermissao('dados.ver_todas_cidades');
     }
 
+    public function podeAcessarCidade(?int $cidadeId): bool
+    {
+        return $this->veTodasCidades() || $this->cidades->contains('id', $cidadeId);
+    }
+
+    /** Cidades que o usuário pode ver e operar (todas, com dados.ver_todas_cidades). */
+    public function cidadesAcessiveis(): Builder
+    {
+        return Cidade::query()->when(
+            ! $this->veTodasCidades(),
+            fn (Builder $q) => $q->whereIn('id', $this->cidades()->select('cidades.id')),
+        );
+    }
+
     #[Scope]
     protected function filtrar(Builder $query, array $filtros): void
     {

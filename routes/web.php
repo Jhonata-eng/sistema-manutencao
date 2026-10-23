@@ -1,7 +1,12 @@
 <?php
 
+use App\Http\Controllers\AtivoController;
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Cadastros\CidadeController;
+use App\Http\Controllers\Cadastros\FornecedorController;
+use App\Http\Controllers\Cadastros\ResponsavelController;
+use App\Http\Controllers\Cadastros\TipoEquipamentoController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\MinhaSenhaController;
 use App\Http\Controllers\PerfilController;
@@ -19,6 +24,17 @@ Route::middleware('auth')->group(function () {
 
     Route::get('minha-senha', [MinhaSenhaController::class, 'edit'])->name('minha-senha.edit');
     Route::put('minha-senha', [MinhaSenhaController::class, 'update'])->name('minha-senha.update');
+
+    // Ativos: permissão + escopo por cidade na AtivoPolicy.
+    Route::resource('ativos', AtivoController::class)->parameters(['ativos' => 'ativo']);
+    Route::get('ativos/{ativo}/foto', [AtivoController::class, 'foto'])->name('ativos.foto');
+
+    Route::middleware('can:cadastros.gerenciar')->prefix('cadastros')->name('cadastros.')->group(function () {
+        Route::resource('cidades', CidadeController::class)->except('show')->parameters(['cidades' => 'cidade']);
+        Route::resource('tipos', TipoEquipamentoController::class)->except('show')->parameters(['tipos' => 'tipo']);
+        Route::resource('responsaveis', ResponsavelController::class)->except('show')->parameters(['responsaveis' => 'responsavel']);
+        Route::resource('fornecedores', FornecedorController::class)->except('show')->parameters(['fornecedores' => 'fornecedor']);
+    });
 
     Route::middleware('can:usuarios.gerenciar')->group(function () {
         Route::resource('usuarios', UsuarioController::class)

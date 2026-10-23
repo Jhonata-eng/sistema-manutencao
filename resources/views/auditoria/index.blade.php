@@ -7,8 +7,8 @@
 
     <form method="GET" class="card card-body mb-3">
         <div class="row g-2 align-items-end">
-            <div class="col-6 col-md-2"><x-campo name="de" label="De" type="date" :value="request('de')" grupo="" /></div>
-            <div class="col-6 col-md-2"><x-campo name="ate" label="Até" type="date" :value="request('ate')" grupo="" /></div>
+            <div class="col-6 col-md-2"><x-campo-data name="de" label="De" :value="request('de')" grupo="" /></div>
+            <div class="col-6 col-md-2"><x-campo-data name="ate" label="Até" :value="request('ate')" grupo="" /></div>
             <div class="col-md-3"><x-selecao name="usuario" label="Usuário" :opcoes="$usuarios" :value="request('usuario')" vazio="Todos" grupo="" /></div>
             <div class="col-6 col-md-2"><x-selecao name="evento" label="Evento" :opcoes="\App\Models\Auditoria::EVENTOS" :value="request('evento')" vazio="Todos" grupo="" /></div>
             <div class="col-6 col-md-2">
