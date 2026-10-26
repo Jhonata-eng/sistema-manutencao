@@ -101,6 +101,28 @@ class Auditoria extends Model
             ->all();
     }
 
+    /**
+     * Escopo por cidade: sem dados.ver_todas_cidades, os eventos de ativos, planos e manutenções
+     * só aparecem se o ativo for de uma cidade do usuário. Eventos de cadastros, usuários e perfis
+     * não pertencem a uma cidade e continuam visíveis.
+     */
+    #[Scope]
+    protected function visivelPara(Builder $query, User $usuario): void
+    {
+        if ($usuario->veTodasCidades()) {
+            return;
+        }
+
+        $ativos = Ativo::withTrashed()->visivelPara($usuario)->select('id');
+        $query->where(fn (Builder $q) => $q
+            ->whereNotIn('auditavel_type', ['ativo', 'plano', 'manutencao'])
+            ->orWhere(fn (Builder $q) => $q->where('auditavel_type', 'ativo')->whereIn('auditavel_id', $ativos))
+            ->orWhere(fn (Builder $q) => $q->where('auditavel_type', 'plano')
+                ->whereIn('auditavel_id', PlanoManutencao::whereIn('ativo_id', $ativos)->select('id')))
+            ->orWhere(fn (Builder $q) => $q->where('auditavel_type', 'manutencao')
+                ->whereIn('auditavel_id', Manutencao::whereIn('ativo_id', $ativos)->select('id'))));
+    }
+
     #[Scope]
     protected function filtrar(Builder $query, array $filtros): void
     {

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CabecalhosSeguranca;
 use App\Http\Middleware\GarantirUsuarioAtivo;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -13,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: GarantirUsuarioAtivo::class);
+        $middleware->web(append: [GarantirUsuarioAtivo::class, CabecalhosSeguranca::class]);
         $middleware->redirectUsersTo('/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {

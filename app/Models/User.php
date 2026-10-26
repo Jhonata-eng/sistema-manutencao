@@ -53,6 +53,24 @@ class User extends Authenticatable
         return $this->temPermissao('dados.ver_todas_cidades');
     }
 
+    /**
+     * Ninguém concede mais acesso do que tem: o perfil só pode ter permissões que este usuário também tem.
+     */
+    public function podeConcederPerfil(Perfil $perfil): bool
+    {
+        return $perfil->permissoes->pluck('chave')->diff($this->perfil->permissoes->pluck('chave'))->isEmpty();
+    }
+
+    /**
+     * Editar ou redefinir a senha de outro usuário exige ter todas as permissões dele e enxergar
+     * todas as cidades dele; senão, bastaria redefinir a senha de um administrador para virar um.
+     */
+    public function podeAdministrar(User $alvo): bool
+    {
+        return $this->podeConcederPerfil($alvo->perfil)
+            && ($this->veTodasCidades() || $alvo->cidades->pluck('id')->diff($this->cidades->pluck('id'))->isEmpty());
+    }
+
     public function podeAcessarCidade(?int $cidadeId): bool
     {
         return $this->veTodasCidades() || $this->cidades->contains('id', $cidadeId);

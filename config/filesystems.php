@@ -33,7 +33,8 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Desligado: fotos e anexos só saem pelos controllers, que conferem permissão e cidade.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

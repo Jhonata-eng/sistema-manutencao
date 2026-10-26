@@ -109,6 +109,7 @@ class DashboardService
     private function distribuicao(Closure $base, CarbonImmutable $de, CarbonImmutable $ate, string $tabela, string $chave, string $rotulo): Collection
     {
         return $base()
+            ->forceIndex('manutencoes_realizado_index')
             ->where('manutencoes.status', StatusManutencao::Realizada)
             ->whereBetween('manutencoes.data_execucao', [$de->toDateString(), $ate->toDateString()])
             ->join('ativos', 'ativos.id', '=', 'manutencoes.ativo_id')
@@ -128,9 +129,14 @@ class DashboardService
             ->selectRaw('COALESCE(SUM(manutencoes.valor_previsto), 0) as total');
     }
 
+    /**
+     * O índice é indicado porque o otimizador do MySQL prefere o índice de status (status, data_prevista),
+     * que lê metade da tabela: com ~160 mil manutenções, 600 ms contra 60 ms (docs/PROGRESSO.md, Fase 6).
+     */
     private function somaRealizado(Builder $consulta): Builder
     {
         return $consulta
+            ->forceIndex('manutencoes_realizado_index')
             ->where('manutencoes.status', StatusManutencao::Realizada)
             ->selectRaw('COALESCE(SUM(manutencoes.valor_real), 0) as total');
     }

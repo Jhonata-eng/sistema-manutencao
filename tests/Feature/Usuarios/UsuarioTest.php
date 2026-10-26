@@ -120,21 +120,19 @@ it('não deixa o usuário inativar a si mesmo', function () {
     expect($this->admin->fresh()->ativo)->toBeTrue();
 });
 
-it('não deixa o sistema sem usuário ativo capaz de gerenciar perfis', function () {
-    // Único usuário com perfis.gerenciar; quem edita só gerencia usuários.
-    $unicoAdmin = $this->admin;
-    $gestorUsuarios = User::factory()->comPermissoes('usuarios.gerenciar')->create();
+it('não deixa o único administrador tirar de si o acesso administrativo', function () {
+    $gestor = Perfil::firstWhere('nome', 'Gestor');
 
-    $this->actingAs($gestorUsuarios)
-        ->put(route('usuarios.update', $unicoAdmin), [
-            'name' => $unicoAdmin->name,
-            'email' => $unicoAdmin->email,
-            'perfil_id' => $unicoAdmin->perfil_id,
-            'ativo' => '0',
+    $this->actingAs($this->admin)
+        ->put(route('usuarios.update', $this->admin), [
+            'name' => $this->admin->name,
+            'email' => $this->admin->email,
+            'perfil_id' => $gestor->id,
+            'ativo' => '1',
         ])
         ->assertSessionHasErrors('protecao');
 
-    expect($unicoAdmin->fresh()->ativo)->toBeTrue();
+    expect($this->admin->fresh()->perfil->nome)->toBe('Administrador');
 });
 
 it('redefine a senha de outro usuário e encerra as sessões dele', function () {

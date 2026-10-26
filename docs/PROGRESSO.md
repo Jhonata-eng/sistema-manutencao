@@ -1,6 +1,6 @@
 # Progresso
 
-Última atualização: 26/10/2026, ao fim da Fase 5.
+Última atualização: 26/10/2026, ao fim da Fase 6 (todas as fases da especificação concluídas).
 
 ## Situação
 
@@ -10,8 +10,8 @@
 | 2 | Cadastros auxiliares e ativos | Concluída (commit `2a688b5`) |
 | 3 | Planos recorrentes, geração de ocorrências, comando agendado | Concluída (commit `5e28a76`) |
 | 4 | Execução, não programada, anexos, cancelamento/reagendamento, correção de valor | Concluída (commit `dcb6fee`) |
-| 5 | Dashboard e visão unificada (lista, calendário, exportação) | **Concluída**, aguardando aprovação |
-| 6 | Revisão de segurança e performance, README completo | Próxima |
+| 5 | Dashboard e visão unificada (lista, calendário, exportação) | Concluída (commit `4336432`) |
+| 6 | Revisão de segurança e performance, README completo | **Concluída**, aguardando aprovação |
 
 ## Fase 1: o que foi feito
 
@@ -68,14 +68,64 @@
 - **Escopos de `Manutencao`** passaram a qualificar as colunas (necessário para os joins do painel).
 - **Testes**: 223 testes, 743 asserções (cálculos do painel com cenário fixo, filtros do painel, número do card/barra = total da lista aberta, painel e boas-vindas, filtros e totais da visão unificada, data efetiva × prevista × execução, escopo, calendário e "+N mais", CSV com formato, filtro e proteção contra fórmulas, permissão de exportar, seeder de demonstração).
 
-## Próximos passos (Fase 6)
+## Fase 6: o que foi feito
 
-1. Revisão de segurança: percorrer todas as rotas com usuário de outra cidade e sem permissão (teste que varre `route:list`), cabeçalhos HTTP (X-Frame-Options, Referrer-Policy, CSP básica), cookies `secure` em produção, `APP_DEBUG=false`, validação server-side de todos os formulários, saída escapada (`{!! !!}` ausente), `@csrf` em todos os forms.
-2. Desempenho: `EXPLAIN` nas consultas do painel e da visão unificada com volume (ex.: 50 mil manutenções), índices que faltarem, consultas por linha (o modo estrito já barra em desenvolvimento), cache de configuração/rotas/views no deploy.
-3. README completo: instalação em Linux (Nginx ou Apache + PHP-FPM 8.3, extensões, MySQL/MariaDB), `.env` de produção, permissões de `storage/`, cron `* * * * * php artisan schedule:run`, `upload_max_filesize`/`post_max_size`/`client_max_body_size`, `app:criar-admin`, backup do banco e de `storage/app/private`, atualização de versão.
-4. Revisão final do `CLAUDE.md` e do `docs/PROGRESSO.md`.
+### Segurança
 
-## Modelo de dados planejado
+- **Varredura estática**: nenhum `{!! !!}`, `@csrf` em todos os formulários POST, nenhuma entrada sem validação, SQL bruto só com fragmentos internos e valores como parâmetros; `composer audit` sem vulnerabilidades.
+- **Varredura de rotas** (`tests/Feature/Seguranca/VarreduraRotasTest.php`): percorre todas as rotas autenticadas registradas e exige login para visitante, 403 para usuário sem permissão e 403 para usuário de outra cidade (mesmo com todas as permissões). Validado removendo de propósito uma autorização: o teste falhou apontando a rota.
+- **Corrigido: escalada de privilégio.** Quem tinha `usuarios.gerenciar` podia dar a qualquer um (até a si) o perfil Administrador ou redefinir a senha do administrador. Agora o perfil atribuído só pode ter permissões que o autor tem, as cidades vinculadas têm de ser acessíveis ao autor, e editar ou redefinir a senha de alguém exige ter todas as permissões e cidades dele (`UserPolicy`).
+- **Corrigido: auditoria vazava dados de outras cidades.** O perfil Gestor (restrito às suas cidades) via, na auditoria, os valores de ativos, planos e manutenções de todas. `Auditoria::visivelPara()` aplica o escopo na lista e nos detalhes; eventos de cadastros, usuários e perfis continuam visíveis.
+- **Corrigido: rota de upload direto no disco privado.** O esqueleto do Laravel 13 vem com `serve => true` no disco `local`, o que registra `GET/PUT storage/{path}` (com URL assinada). Desligado: fotos e anexos só saem pelos controllers.
+- **Cabeçalhos** (`CabecalhosSeguranca`): CSP nas páginas HTML (scripts só do próprio servidor, `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`. Conferido no navegador: gráficos, menus, offcanvas e PDF inline funcionam, sem erros no console.
+- **Páginas de erro** em português (403, 404, 419, 429, 500, 503), sem detalhes internos.
+- **Trava nos testes**: o `TestCase` aborta se o banco não terminar em `_testes` (ver "Incidente" abaixo).
+
+### Desempenho
+
+Banco temporário com 1.000 ativos, 162.904 manutenções e 81.466 anexos (já removido). Tempos com cache aquecido, Docker no WSL2:
+
+| Operação | Antes | Depois |
+|---|---|---|
+| Painel completo, administrador | ~2–3 s | ~0,25 s |
+| Painel completo, usuário de 1 cidade | ~1–2,4 s | ~0,36 s |
+| Lista do mês (página + totais) | ~0,55 s | 26–74 ms |
+| Lista de 12 meses (página + totais) | ~0,65 s | ~0,12 s |
+| Exportação CSV de 12 meses, todas as cidades (46 mil linhas): tempo de banco | 22,6 s | 2,2 s |
+| Exportação CSV de 12 meses, total | ~23 s | ~15 s (o restante é montar e formatar os objetos no PHP) |
+
+- Coluna gerada `manutencoes.data_efetiva` (armazenada e indexada) no lugar de `COALESCE(...)` nos filtros e ordenações.
+- Índices de cobertura: `(data_execucao, status, tipo, ativo_id, valor_real)`, `(tipo, data_prevista, status, ativo_id, valor_previsto)` e `(status, data_prevista, ativo_id, valor_previsto)`; saíram `(data_execucao, tipo)` e `(status, data_prevista)`.
+- `forceIndex` nas somas do realizado: o otimizador escolhia o índice de status (600 ms contra 60 ms com o de cobertura).
+- Exportação: IDs ordenados numa consulta e lotes de 1.000 pela chave primária (o `OFFSET` refazia a ordenação a cada lote); `set_time_limit(0)` durante o envio.
+- **MariaDB 10.6**: a suíte inteira (237 testes) passou num MariaDB 10.6.28, incluindo a coluna gerada e as dicas de índice.
+
+### Documentação
+
+- README completo: requisitos, instalação em Ubuntu com Nginx ou Apache + PHP-FPM, `.env` de produção, permissões, seeders, `optimize`, limites de upload, cron do agendador, atualização de versão, backup e tabela de segurança.
+- `.env.example` com `SESSION_SECURE_COOKIE` e a nota de `APP_DEBUG=false` em produção.
+
+### Testes
+
+237 testes, 1.033 asserções, em MySQL 8.4 e MariaDB 10.6.
+
+### Incidente durante a fase (ambiente de desenvolvimento)
+
+Ao conferir o README, rodei `php artisan optimize` (cache de configuração) e depois a suíte de testes. Com o cache, o `phpunit.xml` é ignorado, e o `RefreshDatabase` recriou o banco **de desenvolvimento** (`manutencao`), apagando os dados de exemplo e o admin local. Nada de produção foi afetado. Providências:
+- Trava no `tests/TestCase.php`: aborta antes de tocar no banco se ele não terminar em `_testes`. Testado com o cache ativo.
+- Banco de desenvolvimento reconstruído com as mesmas credenciais, dados equivalentes aos feitos à mão nas fases 2 a 4 e o seeder de demonstração. Arquivos órfãos removidos.
+- Aviso no `CLAUDE.md` e no README: nunca rodar testes com cache de configuração (em produção, isso apagaria o banco real se não fosse a trava).
+
+## Possíveis evoluções (fora do escopo, não implementadas)
+
+- Itens que a especificação lista como "fora do escopo inicial", que o modelo atual comporta sem mudanças:
+  - **Metas de orçamento**: nova tabela `metas_orcamento` (cidade?, tipo de equipamento?, ano, mês?, valor) comparada com as somas do `DashboardService`.
+  - **Alertas por e-mail**: usuários e responsáveis já têm e-mail; basta um comando agendado sobre `Manutencao::pendentes()`.
+  - **Importação de ativos por CSV**: o patrimônio é único e serve como chave; cidades, tipos e responsáveis são buscados pelo nome.
+  - **QR code do patrimônio**: a URL do ativo (`/ativos/{id}`) é estável e o patrimônio é único.
+- Exportação anual muito grande mais rápida: gerar as linhas direto em SQL, sem montar os models (hoje ~15 s para 46 mil linhas).
+
+## Modelo de dados
 
 Todas as tabelas do modelo já existem: `users`, `perfis`, `permissoes`, `perfil_permissao`, `cidades`, `cidade_user`, `auditoria`, `tipos_equipamento`, `responsaveis`, `fornecedores`, `ativos`, `planos_manutencao`, `manutencoes`, `anexos`, `correcoes_valor` (+ `sessions`, `cache`, `jobs` do Laravel). Os campos estão nas migrations; abaixo, só as duas últimas:
 
@@ -185,9 +235,19 @@ Respostas do usuário à proposta inicial (todas aprovadas em 23/10/2026):
 - **Gráficos só no tema claro** (o sistema não tem tema escuro).
 - **Seeder de demonstração** separado, que roda uma vez, exige um administrador e cria dois usuários de exemplo (`demo12345`). Não deve rodar em produção.
 
+### Tomadas na Fase 6 (não especificadas; avisadas ao usuário)
+
+- **Ninguém concede nem administra mais acesso do que tem** (perfil e cidades); o administrador não é afetado.
+- **Auditoria com escopo por cidade** para quem não tem `dados.ver_todas_cidades` (eventos de ativos, planos e manutenções); cadastros, usuários e perfis continuam visíveis a quem tem `auditoria.visualizar`.
+- **`perfis.gerenciar` é de nível administrador** (permite se dar qualquer permissão); documentado no README.
+- **Rota `storage/{path}` do Laravel desligada** (`serve => false`).
+- **CSP** sem scripts inline; estilos inline permitidos por causa dos atributos `style` das views. HSTS fica no servidor web.
+- **Exportação sem limite de tempo de execução** durante o envio (o download começa logo; 12 meses de 1.000 ativos levam ~15 s).
+
 ## Observações para retomar
 
 - Containers: `docker compose up -d` na raiz; o PHP do host não serve para rodar o projeto.
 - Prints de verificação visual: Playwright via container `mcr.microsoft.com/playwright:v1.61.1-noble` com `--network host` (o Chromium do WSL não tem as bibliotecas do sistema). Para ver datas como um usuário brasileiro, lance o Chromium com `--lang=pt-BR`.
-- O banco de desenvolvimento tem os dados criados à mão nas fases anteriores (AC-0001, GER-0001 etc.) e o `DemonstracaoSeeder` já carregado (20 ativos `DEMO-*`, usuários `tecnico.demo` e `gestor.demo` com senha `demo12345`).
+- O banco de desenvolvimento foi reconstruído na Fase 6: admin `admin@exemplo.com.br` / `admin12345`, AC-0001 (dois planos, execução com nota e correção, reagendamento), AC-0002, GER-0001 (não programada com XML), NB-0001 e o `DemonstracaoSeeder` (20 ativos `DEMO-*`, usuários `tecnico.demo` e `gestor.demo` com senha `demo12345`).
+- Testes: sempre sem cache de configuração (`php artisan config:clear`).
 - Em testes, use `$this->travelTo(...)` para fixar "hoje": as regras de pendente futura e atrasada dependem da data.

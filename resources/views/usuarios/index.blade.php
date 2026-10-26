@@ -53,10 +53,12 @@
                         </td>
                         <td><x-situacao :ativo="$usuario->ativo" /></td>
                         <td class="text-end text-nowrap">
-                            <a href="{{ route('usuarios.edit', $usuario) }}" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
-                            @unless ($usuario->is(auth()->user()))
-                                <a href="{{ route('usuarios.senha.edit', $usuario) }}" class="btn btn-sm btn-outline-secondary" title="Redefinir senha"><i class="bi bi-key"></i></a>
-                            @endunless
+                            @can('update', $usuario)
+                                <a href="{{ route('usuarios.edit', $usuario) }}" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
+                                @unless ($usuario->is(auth()->user()))
+                                    <a href="{{ route('usuarios.senha.edit', $usuario) }}" class="btn btn-sm btn-outline-secondary" title="Redefinir senha"><i class="bi bi-key"></i></a>
+                                @endunless
+                            @endcan
                         </td>
                     </tr>
                 @empty

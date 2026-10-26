@@ -100,7 +100,7 @@ class Manutencao extends Model
             && ! $this->anexos->contains(fn (Anexo $anexo) => $anexo->eComprovante());
     }
 
-    /** Posição no tempo: a data de execução, se realizada; senão a prevista (ver FiltroManutencoes::DATA_EFETIVA). */
+    /** Posição no tempo: a data de execução, se realizada; senão a prevista (a coluna gerada data_efetiva no banco). */
     public function dataEfetiva(): ?CarbonImmutable
     {
         return $this->data_execucao ?? $this->data_prevista;

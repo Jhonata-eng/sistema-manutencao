@@ -15,8 +15,11 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class FiltroManutencoes
 {
-    /** Posição da manutenção no tempo: a data de execução, se realizada; senão a data prevista. */
-    public const DATA_EFETIVA = 'COALESCE(manutencoes.data_execucao, manutencoes.data_prevista)';
+    /**
+     * Posição da manutenção no tempo: a data de execução, se realizada; senão a data prevista.
+     * Coluna gerada e indexada no banco: COALESCE(data_execucao, data_prevista).
+     */
+    public const DATA_EFETIVA = 'manutencoes.data_efetiva';
 
     /** Qual data o período (de/até) usa: a efetiva (padrão), só a prevista ou só a de execução. */
     public const BASES_DE_DATA = [

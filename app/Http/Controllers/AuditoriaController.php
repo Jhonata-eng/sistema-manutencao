@@ -13,6 +13,7 @@ class AuditoriaController extends Controller
     {
         return view('auditoria.index', [
             'registros' => Auditoria::query()
+                ->visivelPara($request->user())
                 ->with('usuario')
                 ->filtrar($request->only('usuario', 'evento', 'tipo', 'registro', 'de', 'ate'))
                 ->latest('id')
@@ -22,8 +23,10 @@ class AuditoriaController extends Controller
         ]);
     }
 
-    public function show(Auditoria $auditoria): View
+    public function show(Request $request, Auditoria $auditoria): View
     {
+        abort_unless(Auditoria::visivelPara($request->user())->whereKey($auditoria->id)->exists(), 403);
+
         return view('auditoria.show', ['registro' => $auditoria->load('usuario')]);
     }
 }

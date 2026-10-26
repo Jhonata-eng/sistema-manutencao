@@ -65,7 +65,7 @@ class AtivoController extends Controller
             'historico' => $ativo->manutencoes()
                 ->historico()
                 ->with(['ativo', 'plano', 'anexos'])
-                ->orderByRaw('COALESCE(data_execucao, data_prevista) DESC')
+                ->orderByDesc('data_efetiva')
                 ->orderByDesc('id')
                 ->paginate(15, pageName: 'historico'),
             // SUM em SQL devolve string decimal; ->sum() do Laravel converteria para float.

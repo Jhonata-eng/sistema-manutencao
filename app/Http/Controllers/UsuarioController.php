@@ -4,12 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SalvarUsuarioRequest;
 use App\Http\Requests\SenhaRequest;
-use App\Models\Cidade;
 use App\Models\Perfil;
 use App\Models\User;
 use App\Services\UsuarioService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Attributes\Controllers\Authorize;
 use Illuminate\View\View;
 
 class UsuarioController extends Controller
@@ -29,9 +29,9 @@ class UsuarioController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return $this->formulario(new User(['ativo' => true]));
+        return $this->formulario($request->user(), new User(['ativo' => true]));
     }
 
     public function store(SalvarUsuarioRequest $request): RedirectResponse
@@ -41,9 +41,10 @@ class UsuarioController extends Controller
         return redirect()->route('usuarios.index')->with('sucesso', "Usuário {$usuario->name} criado.");
     }
 
-    public function edit(User $usuario): View
+    #[Authorize('update', 'usuario')]
+    public function edit(Request $request, User $usuario): View
     {
-        return $this->formulario($usuario);
+        return $this->formulario($request->user(), $usuario);
     }
 
     public function update(SalvarUsuarioRequest $request, User $usuario): RedirectResponse
@@ -53,6 +54,7 @@ class UsuarioController extends Controller
         return redirect()->route('usuarios.index')->with('sucesso', "Usuário {$usuario->name} atualizado.");
     }
 
+    #[Authorize('update', 'usuario')]
     public function editarSenha(Request $request, User $usuario): View|RedirectResponse
     {
         if ($usuario->is($request->user())) {
@@ -62,6 +64,7 @@ class UsuarioController extends Controller
         return view('usuarios.senha', ['usuario' => $usuario]);
     }
 
+    #[Authorize('update', 'usuario')]
     public function redefinirSenha(SenhaRequest $request, User $usuario): RedirectResponse
     {
         abort_if($usuario->is($request->user()), 403);
@@ -71,12 +74,15 @@ class UsuarioController extends Controller
         return redirect()->route('usuarios.index')->with('sucesso', "Senha de {$usuario->name} redefinida. As sessões abertas dele foram encerradas.");
     }
 
-    private function formulario(User $usuario): View
+    /** Só oferece perfis que o autor pode conceder e cidades às quais ele tem acesso. */
+    private function formulario(User $autor, User $usuario): View
     {
         return view('usuarios.form', [
             'usuario' => $usuario,
-            'perfis' => Perfil::orderBy('nome')->pluck('nome', 'id'),
-            'cidades' => Cidade::orderBy('nome')->get(),
+            'perfis' => Perfil::with('permissoes')->orderBy('nome')->get()
+                ->filter(fn (Perfil $perfil) => $autor->podeConcederPerfil($perfil))
+                ->pluck('nome', 'id'),
+            'cidades' => $autor->cidadesAcessiveis()->orderBy('nome')->get(),
             'cidadesMarcadas' => $usuario->exists ? $usuario->cidades()->pluck('cidades.id')->all() : [],
         ]);
     }

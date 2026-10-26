@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\StatusManutencao;
 use App\Models\Manutencao;
 use Illuminate\Database\Eloquent\Builder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -18,34 +19,51 @@ class ExportacaoManutencoes
         'Valor real', 'Sem comprovante',
     ];
 
+    /**
+     * Primeiro busca só os IDs, já na ordem (consulta servida pelo índice de data_efetiva); depois
+     * carrega lotes de 1.000 pela chave primária. Paginar com OFFSET reordenaria tudo a cada lote:
+     * 12 meses com ~160 mil manutenções levavam ~22 s (docs/PROGRESSO.md, Fase 6).
+     */
     public function csv(Builder $consulta): StreamedResponse
     {
-        $consulta->with(['ativo.cidade', 'ativo.tipo', 'ativo.responsavel', 'plano', 'fornecedor', 'anexos'])
+        $ids = (clone $consulta)->reorder()
             ->orderByRaw(FiltroManutencoes::DATA_EFETIVA)
-            ->orderBy('manutencoes.id');
+            ->orderBy('manutencoes.id')
+            ->pluck('manutencoes.id');
 
-        return response()->streamDownload(function () use ($consulta) {
+        return response()->streamDownload(function () use ($ids) {
+            // Exportações grandes podem passar do max_execution_time padrão; o arquivo já está sendo enviado.
+            set_time_limit(0);
+            $hoje = today()->toDateString();
             $saida = fopen('php://output', 'w');
             fwrite($saida, "\u{FEFF}");
             fputcsv($saida, self::CABECALHO, ';', '"', '');
 
-            foreach ($consulta->lazy(500) as $manutencao) {
-                fputcsv($saida, $this->linha($manutencao), ';', '"', '');
+            foreach ($ids->chunk(1000) as $lote) {
+                $porId = Manutencao::with(['ativo.cidade', 'ativo.tipo', 'ativo.responsavel', 'plano', 'fornecedor', 'anexos'])
+                    ->whereKey($lote->all())
+                    ->get()
+                    ->keyBy('id');
+
+                foreach ($lote as $id) {
+                    fputcsv($saida, $this->linha($porId[$id], $hoje), ';', '"', '');
+                }
             }
 
             fclose($saida);
         }, 'manutencoes-'.now()->format('Y-m-d-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    private function linha(Manutencao $manutencao): array
+    private function linha(Manutencao $manutencao, string $hoje): array
     {
         $ativo = $manutencao->ativo;
+        $atrasada = $manutencao->status === StatusManutencao::Prevista && $manutencao->data_prevista?->toDateString() < $hoje;
 
         return [
             $manutencao->id,
             data_br($manutencao->data_prevista),
             data_br($manutencao->data_execucao),
-            $manutencao->estaAtrasada() ? 'Atrasada' : $manutencao->status->rotulo(),
+            $atrasada ? 'Atrasada' : $manutencao->status->rotulo(),
             $manutencao->tipo->rotulo(),
             $this->texto($ativo->patrimonio),
             $this->texto($ativo->tipo->nome),

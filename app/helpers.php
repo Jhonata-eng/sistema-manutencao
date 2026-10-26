@@ -16,7 +16,11 @@ if (! function_exists('data_br')) {
     /** Data no formato dd/mm/aaaa ("" se vazia). */
     function data_br(CarbonInterface|string|null $data): string
     {
-        return blank($data) ? '' : Carbon::parse($data)->format('d/m/Y');
+        if (blank($data)) {
+            return '';
+        }
+
+        return ($data instanceof CarbonInterface ? $data : Carbon::parse($data))->format('d/m/Y');
     }
 }
 
