@@ -1,6 +1,6 @@
 # Progresso
 
-Última atualização: 26/10/2026, ao fim da Fase 3.
+Última atualização: 26/10/2026, ao fim da Fase 4.
 
 ## Situação
 
@@ -8,9 +8,9 @@
 |---|---|---|
 | 1 | Setup, layout, autenticação, usuários, perfis/permissões, auditoria base | Concluída (commit `6a8e870`) |
 | 2 | Cadastros auxiliares e ativos | Concluída (commit `2a688b5`) |
-| 3 | Planos recorrentes, geração de ocorrências, comando agendado | **Concluída**, aguardando aprovação |
-| 4 | Execução, não programada, anexos, cancelamento/reagendamento, correção de valor | Próxima |
-| 5 | Dashboard e visão unificada (lista, calendário, exportação) | — |
+| 3 | Planos recorrentes, geração de ocorrências, comando agendado | Concluída (commit `5e28a76`) |
+| 4 | Execução, não programada, anexos, cancelamento/reagendamento, correção de valor | **Concluída**, aguardando aprovação |
+| 5 | Dashboard e visão unificada (lista, calendário, exportação) | Próxima |
 | 6 | Revisão de segurança e performance, README completo | — |
 
 ## Fase 1: o que foi feito
@@ -47,19 +47,28 @@
 - **Ativo fora de operação ou excluído**: inativa os planos e cancela todas as pendentes, com confirmação obrigatória (caixa validada no backend) na edição e contagem no aviso de exclusão.
 - **Testes**: 152 testes, 437 asserções (recorrência pura, geração com dia 31, término, personalizada, validações, comando sem duplicar, reagendada/cancelada não recriadas, edição de valor e de periodicidade, reagendada de data passada, inativação/reativação, exclusão de plano, média real, acesso por cidade, ativo fora de operação).
 
-## Próximos passos (Fase 4)
+## Fase 4: o que foi feito
 
-1. Registrar execução de uma prevista (data, valor real pré-preenchido com o previsto, fornecedor com padrão do plano, descrição, anexos opcionais) com `registrado_por` e auditoria `executada`.
-2. Lançar não programada: busca de ativo por patrimônio, modelo ou cidade (só ativos acessíveis); já nasce realizada (regra 7).
-3. Cancelar e reagendar previstas com justificativa obrigatória (cancelamento manual mantém `data_referencia`; reagendar muda só `data_prevista`), auditados com motivo.
-4. Anexos: tabela `anexos` (FK `restrictOnDelete`), tipos PDF/JPG/PNG/XML validados pelo MIME real, tamanho de `ANEXO_TAMANHO_MAX_MB`, metadados, armazenamento privado, download protegido por permissão e cidade, exclusão com `anexos.excluir`.
-5. Correção de valor (regra 9): tabela `correcoes_valor`, motivo e comprovante obrigatórios, histórico na tela da manutenção.
-6. Tela da manutenção (dados, anexos, histórico); "sem comprovante" calculado (regra 8); histórico completo e total gasto na tela do ativo.
-7. `Manutencao::visivelPara($usuario)` incluindo ativos excluídos (regra 13) e `ManutencaoPolicy`.
+- **Tabelas** `anexos` (índice `(manutencao_id, tipo)`) e `correcoes_valor` (FK `RESTRICT` para o comprovante); enum `TipoAnexo` (nota fiscal, recibo, laudo, foto, outro; comprovantes = nota fiscal e recibo).
+- **`ManutencaoService`**: registrar execução, lançar não programada, cancelar, reagendar e corrigir valor, cada um com seu evento de auditoria. **`AnexoService`**: armazenar (apaga o arquivo se a transação for desfeita, via `DB::afterRollBack`), enviar avulso e excluir.
+- **`ManutencaoPolicy`** (permissão + cidade + status) e **`AnexoPolicy`** (download para quem vê a manutenção; exclusão com `anexos.excluir`); `Manutencao::visivelPara()` inclui ativos excluídos (regra 13).
+- **Telas**: página da manutenção (dados, reagendar/cancelar com justificativa, anexos com envio e exclusão, correções de valor, histórico de eventos), registro de execução (valor, fornecedor e serviço pré-preenchidos pelo plano), não programada (busca do ativo por patrimônio, marca/modelo ou cidade, depois o formulário), correção de valor (comprovante existente ou novo). Na tela do ativo: histórico (realizadas, canceladas e atrasadas), total gasto e atalho para não programada. Na tela do plano: atalhos para registrar e ver cada manutenção. Menu "Manutenções → Lançar não programada".
+- **"Sem comprovante"**: `semComprovante()` no model e escopo `semComprovanteAnexado()` para os filtros da Fase 5; selo nas telas.
+- **Correção de N+1** encontrada no teste no navegador: listas com `@can` por linha agora carregam `ativo` antes; `anexos()` usa `chaperone`. Teste de regressão com várias linhas e usuário com todas as permissões.
+- **Testes**: 195 testes, 633 asserções (execução com anexo, sem comprovante, validações, permissões e status, não programada com busca e escopo, cancelamento que mantém a data ocupada, reagendamento com histórico, tipos de anexo pelo conteúdo, extensão, tamanho máximo, download protegido, XML como download, exclusão de anexo, correção de valor com histórico/comprovante existente ou novo/várias correções/validações, total gasto e histórico do ativo, escopo incluindo ativos excluídos).
+
+## Próximos passos (Fase 5)
+
+1. `FiltroManutencoes`: uma consulta (escopo do usuário + filtros de período, status incluindo "atrasada", cidade, tipo de equipamento, ativo, responsável, fornecedor, programada/não programada, sem comprovante) usada pela lista, calendário, exportação, totais e clique nos gráficos.
+2. Visão unificada: lista paginada com totais do filtro no rodapé (previsto, realizado, diferença = realizado − previsto), calendário mensal (Blade), exportação CSV (BOM, `;`, vírgula decimal, em fluxo) com `relatorios.exportar`.
+3. `DashboardService`: cards (previsto/realizado do mês, atrasadas com quantidade e valor, próximos 30 dias, total de ativos), previsão 12 meses (pendentes), realizado 12 meses empilhado programada/não programada com linha do previsto (regra 5), distribuição por tipo e cidade com período; listas de atrasadas e próximas com atalho para registrar; filtros por cidade, tipo e responsável; clique na barra abre a visão unificada do mês. Somas no SQL.
+4. Chart.js estático em `public/vendor/chart.js/4.6.1/`.
+5. Seeder de demonstração separado e opcional (`DemonstracaoSeeder`).
+6. Testes dos cálculos do dashboard e dos totais.
 
 ## Modelo de dados planejado
 
-Tabelas já criadas: `users`, `perfis`, `permissoes`, `perfil_permissao`, `cidades`, `cidade_user`, `auditoria`, `tipos_equipamento`, `responsaveis`, `fornecedores`, `ativos`, `planos_manutencao`, `manutencoes` (+ `sessions`, `cache`, `jobs` do Laravel). As demais (Fase 4):
+Todas as tabelas do modelo já existem: `users`, `perfis`, `permissoes`, `perfil_permissao`, `cidades`, `cidade_user`, `auditoria`, `tipos_equipamento`, `responsaveis`, `fornecedores`, `ativos`, `planos_manutencao`, `manutencoes`, `anexos`, `correcoes_valor` (+ `sessions`, `cache`, `jobs` do Laravel). Os campos estão nas migrations; abaixo, só as duas últimas:
 
 ```
 anexos             id, manutencao_id, tipo(nota_fiscal|recibo|laudo|foto|outro), numero_nota?, data_emissao?,
@@ -141,9 +150,23 @@ Respostas do usuário à proposta inicial (todas aprovadas em 23/10/2026):
 - **Periodicidade personalizada** de 1 a 120 meses. **Média real** arredondada a 2 casas; o botão "atualizar valor médio" só aparece quando a média difere do valor estimado.
 - **Comando diário** à 01:00, sem sobreposição; em desenvolvimento roda no serviço `scheduler` do Compose.
 
+### Tomadas na Fase 4 (não especificadas; avisadas ao usuário)
+
+- **Anexos só em manutenção realizada** (são documentos da execução); uma prevista não recebe anexo.
+- **Um anexo por vez no formulário** de execução e de não programada; os demais pelo botão "Enviar anexo" da tela da manutenção.
+- **Descrição do serviço executado é obrigatória**, pré-preenchida com o serviço do plano.
+- **Data de execução até hoje** (pode ser antes da data prevista). **Reagendamento**: nova data a partir de hoje e diferente da atual.
+- **Não programada** pode ser lançada para qualquer ativo não excluído das cidades do usuário, inclusive inativo ou baixado.
+- **Correção de valor**: quem tem `manutencoes.corrigir_valor` pode enviar o comprovante da correção mesmo sem `anexos.enviar`; o comprovante tem que ser nota fiscal ou recibo; usar um existente e enviar um novo ao mesmo tempo é recusado; o novo valor tem que ser diferente do atual.
+- **Comprovante de correção não pode ser excluído.** Excluir um anexo apaga o arquivo do disco; a descrição dele fica na auditoria.
+- **Download**: PDF e imagens abrem no navegador; XML é sempre baixado (um XML aberto no navegador poderia executar conteúdo ativo); `X-Content-Type-Options: nosniff`.
+- **XML de NF-e** é reconhecido pelo conteúdo como `text/xml` quando começa com a declaração `<?xml ...?>` (padrão dos XMLs da SEFAZ); um XML sem a declaração pode ser identificado como texto e recusado.
+- **Histórico na tela do ativo**: realizadas, canceladas e atrasadas; as pendentes futuras ficam na tela de cada plano (e na coluna "Próxima").
+- **Arquivos** ficam com nome aleatório em `storage/app/private/anexos/AAAA/MM`; o nome original (até 250 caracteres) é usado só para exibição e no download.
+
 ## Observações para retomar
 
 - Containers: `docker compose up -d` na raiz; o PHP do host não serve para rodar o projeto.
 - Prints de verificação visual: Playwright via container `mcr.microsoft.com/playwright:v1.61.1-noble` com `--network host` (o Chromium do WSL não tem as bibliotecas do sistema). Para ver datas como um usuário brasileiro, lance o Chromium com `--lang=pt-BR`.
-- O banco de desenvolvimento tem dados de exemplo criados à mão (Campinas, Sorocaba, Itu inativa, 4 ativos, 2 fornecedores, 1 responsável, 2 planos no AC-0001). O seeder de demonstração oficial vem na Fase 5.
+- O banco de desenvolvimento tem dados de exemplo criados à mão (Campinas, Sorocaba, Itu inativa, 4 ativos, 2 fornecedores, 1 responsável, 2 planos no AC-0001 com uma execução corrigida e um reagendamento, 1 não programada no GER-0001). O seeder de demonstração oficial vem na Fase 5.
 - Em testes, use `$this->travelTo(...)` para fixar "hoje": as regras de pendente futura e atrasada dependem da data.

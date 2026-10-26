@@ -5,6 +5,11 @@
         <x-menu-item rota="ativos.index" ativo="ativos.*" icone="hdd-rack">Ativos</x-menu-item>
     @endcan
 
+    @can('manutencoes.lancar_nao_programada')
+        <li class="menu-secao">Manutenções</li>
+        <x-menu-item rota="manutencoes.nao-programada.create" ativo="manutencoes.nao-programada.*" icone="wrench-adjustable">Lançar não programada</x-menu-item>
+    @endcan
+
     @can('cadastros.gerenciar')
         <li class="menu-secao">Cadastros</li>
         <x-menu-item rota="cadastros.cidades.index" ativo="cadastros.cidades.*" icone="geo-alt">Cidades</x-menu-item>

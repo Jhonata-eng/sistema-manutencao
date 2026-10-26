@@ -36,7 +36,9 @@ Login de desenvolvimento (só no banco local): `admin@exemplo.com.br` / `admin12
 - Campos de data sempre pelo componente `x-campo-data` (ponto único se o formato do campo mudar).
 - Confirmação antes de enviar: `data-confirmar="mensagem"` no `<form>`.
 - Cadastros auxiliares usam o trait `CadastroAuxiliar`: filtro da listagem, `selecionaveis($atual)` nos selects e `regraSelecionavel($atual)` na validação, para que inativos não entrem em novos vínculos mas continuem nos registros que já os usam.
-- Testes: helpers em `tests/Pest.php` (`usuarioCom([...permissões], ...$cidades)`, `imagemFalsa()`; o container não tem GD, então `UploadedFile::fake()->image()` não funciona).
+- Testes: helpers em `tests/Pest.php` (`usuarioCom([...permissões], ...$cidades)`, `arquivoFalso('pdf'|'jpg'|'png'|'xml'|'txt')`, `imagemFalsa()`, `dadosPlano()`). Para upload use `arquivoFalso()`: ele cria um arquivo real, então o MIME é detectado pelo conteúdo como em produção (o `UploadedFile::fake()` deduz pelo nome, e o container nem tem GD para `fake()->image()`).
+- Listas cujas linhas usam `@can` sobre um registro precisam carregar antes (eager loading) as relações que a Policy consulta (ex.: `with('ativo')`): fora de produção, o modo estrito lança exceção ao carregar relação linha a linha.
+- Somas de dinheiro: `selectRaw('COALESCE(SUM(col), 0) as total')->value('total')`. O `->sum()` do Laravel converte o resultado para float.
 - Rótulos de campos nas mensagens de validação: `lang/pt_BR/validation.php` → `attributes`.
 
 ## Regras essenciais
@@ -49,6 +51,8 @@ Login de desenvolvimento (só no banco local): `admin@exemplo.com.br` / `admin12
 - **Datas**: colunas `DATE`, "hoje" no fuso `APP_TIMEZONE`, exibição com `data_br()` / `data_hora_br()`, campos `type="date"`.
 - **Cadastros em uso** são inativados, nunca excluídos: a exclusão passa por `ExclusaoProtegida`, que usa as FKs `RESTRICT` como definição de "em uso" (novas tabelas que referenciem um cadastro devem usar `restrictOnDelete()`).
 - **Manutenções**: status gravados `prevista | realizada | cancelada`; "atrasada" e "sem comprovante" são calculados na consulta. Geração de ocorrências, edição de plano e cálculo de orçamento seguem `docs/PROGRESSO.md` → "Regras de negócio aprovadas".
+- **Ações sobre manutenções** (execução, não programada, cancelar, reagendar, corrigir valor) passam pelo `ManutencaoService`, e anexos pelo `AnexoService`. A `ManutencaoPolicy` exige permissão + cidade + status (prevista para executar/cancelar/reagendar, realizada para anexar/corrigir). `Manutencao` não usa `Auditavel`: cada ação registra o próprio evento (`executada`, `reagendada`, `cancelada`, `valor_corrigido`, `anexo_enviado`...), mostrado na tela da manutenção.
+- **Anexos**: tipo conferido pelo conteúdo (`mimetypes`) e pela extensão, tamanho de `ANEXO_TAMANHO_MAX_MB`, arquivo no disco privado com nome aleatório, download só pela rota `anexos.show` (AnexoPolicy); XML é sempre baixado, nunca aberto inline.
 - **Ocorrências dos planos**: só o `GeradorOcorrencias` cria, recalcula ou cancela automaticamente as previstas (o `PlanoService` e o `AtivoService` o chamam). `(plano_id, data_referencia)` é único e impede duplicar; o cancelamento automático zera `data_referencia` para liberar a data se o plano voltar a ficar ativo, e o cancelamento manual a mantém.
 - Em `PlanoManutencao`, a relação com o ativo é `equipamento()`: `$plano->ativo` é a coluna booleana de situação.
 

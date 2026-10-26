@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnexoController;
 use App\Http\Controllers\AtivoController;
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\Auth\LoginController;
@@ -7,8 +8,12 @@ use App\Http\Controllers\Cadastros\CidadeController;
 use App\Http\Controllers\Cadastros\FornecedorController;
 use App\Http\Controllers\Cadastros\ResponsavelController;
 use App\Http\Controllers\Cadastros\TipoEquipamentoController;
+use App\Http\Controllers\CorrecaoValorController;
+use App\Http\Controllers\ExecucaoController;
 use App\Http\Controllers\InicioController;
+use App\Http\Controllers\ManutencaoController;
 use App\Http\Controllers\MinhaSenhaController;
+use App\Http\Controllers\NaoProgramadaController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\PlanoController;
 use App\Http\Controllers\UsuarioController;
@@ -33,6 +38,24 @@ Route::middleware('auth')->group(function () {
     // Planos: criados dentro do ativo, demais rotas rasas (planos/{plano}); permissão + cidade na PlanoManutencaoPolicy.
     Route::resource('ativos.planos', PlanoController::class)->shallow()->except('index')->parameters(['planos' => 'plano']);
     Route::post('planos/{plano}/atualizar-valor-medio', [PlanoController::class, 'atualizarValorMedio'])->name('planos.atualizar-valor-medio');
+
+    // Manutenções: permissão + cidade + status exigido na ManutencaoPolicy (via #[Authorize] ou Form Request).
+    Route::middleware('can:manutencoes.lancar_nao_programada')->group(function () {
+        Route::get('manutencoes/nao-programada', [NaoProgramadaController::class, 'create'])->name('manutencoes.nao-programada.create');
+        Route::post('manutencoes/nao-programada', [NaoProgramadaController::class, 'store'])->name('manutencoes.nao-programada.store');
+    });
+    Route::prefix('manutencoes/{manutencao}')->name('manutencoes.')->whereNumber('manutencao')->group(function () {
+        Route::get('/', [ManutencaoController::class, 'show'])->name('show');
+        Route::post('cancelamento', [ManutencaoController::class, 'cancelar'])->name('cancelar');
+        Route::post('reagendamento', [ManutencaoController::class, 'reagendar'])->name('reagendar');
+        Route::get('execucao', [ExecucaoController::class, 'create'])->name('execucao.create');
+        Route::post('execucao', [ExecucaoController::class, 'store'])->name('execucao.store');
+        Route::get('correcao-valor', [CorrecaoValorController::class, 'create'])->name('correcao-valor.create');
+        Route::post('correcao-valor', [CorrecaoValorController::class, 'store'])->name('correcao-valor.store');
+        Route::post('anexos', [AnexoController::class, 'store'])->name('anexos.store');
+    });
+    Route::get('anexos/{anexo}', [AnexoController::class, 'show'])->name('anexos.show');
+    Route::delete('anexos/{anexo}', [AnexoController::class, 'destroy'])->name('anexos.destroy');
 
     Route::middleware('can:cadastros.gerenciar')->prefix('cadastros')->name('cadastros.')->group(function () {
         Route::resource('cidades', CidadeController::class)->except('show')->parameters(['cidades' => 'cidade']);

@@ -41,7 +41,7 @@ class PlanoController extends Controller
         return view('planos.show', [
             'plano' => $plano->load(['equipamento.cidade', 'fornecedor']),
             'mediaReal' => $plano->mediaReal(),
-            'ocorrencias' => $plano->manutencoes()->orderBy('data_prevista')->orderBy('id')->paginate(50),
+            'ocorrencias' => $plano->manutencoes()->with('ativo')->orderBy('data_prevista')->orderBy('id')->paginate(50),
         ]);
     }
 

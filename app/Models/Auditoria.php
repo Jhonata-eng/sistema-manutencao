@@ -43,6 +43,13 @@ class Auditoria extends Model
         'senha_redefinida' => 'Redefinição de senha',
         'ocorrencias_canceladas' => 'Cancelamento de manutenções pendentes',
         'ocorrencias_recalculadas' => 'Recálculo de manutenções futuras',
+        'executada' => 'Registro de execução',
+        'nao_programada_lancada' => 'Lançamento de manutenção não programada',
+        'reagendada' => 'Reagendamento',
+        'cancelada' => 'Cancelamento',
+        'valor_corrigido' => 'Correção de valor',
+        'anexo_enviado' => 'Envio de anexo',
+        'anexo_excluido' => 'Exclusão de anexo',
     ];
 
     protected function casts(): array

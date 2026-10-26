@@ -65,6 +65,7 @@
                     <th>Execução</th>
                     <th class="text-end">Valor real</th>
                     <th>Observação</th>
+                    <th></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -81,9 +82,17 @@
                         <td class="text-nowrap">{{ data_br($ocorrencia->data_execucao) ?: '—' }}</td>
                         <td class="text-end text-nowrap">{{ moeda($ocorrencia->valor_real) }}</td>
                         <td class="small text-body-secondary">{{ $ocorrencia->motivo_cancelamento }}</td>
+                        <td class="text-end text-nowrap">
+                            @can('registrarExecucao', $ocorrencia)
+                                <a href="{{ route('manutencoes.execucao.create', $ocorrencia) }}" class="btn btn-sm btn-outline-primary" title="Registrar execução"><i class="bi bi-check2-circle"></i></a>
+                            @endcan
+                            @can('view', $ocorrencia)
+                                <a href="{{ route('manutencoes.show', $ocorrencia) }}" class="btn btn-sm btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
+                            @endcan
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-center text-body-secondary py-4">Nenhuma manutenção gerada.</td></tr>
+                    <tr><td colspan="7" class="text-center text-body-secondary py-4">Nenhuma manutenção gerada.</td></tr>
                 @endforelse
                 </tbody>
             </table>

@@ -93,4 +93,59 @@
             </div>
         </div>
     @endcan
+
+    @can('manutencoes.visualizar')
+        <div class="card mb-3">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <span class="fw-semibold">Histórico de manutenções <span class="fw-normal small text-body-secondary">(as próximas estão em cada plano)</span></span>
+                <span class="ms-auto">Total gasto: <strong>{{ moeda($totalGasto) }}</strong></span>
+                @can('lancarNaoProgramada', [\App\Models\Manutencao::class, $ativo])
+                    <a href="{{ route('manutencoes.nao-programada.create', ['ativo' => $ativo->id]) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-wrench-adjustable me-1"></i>Lançar não programada
+                    </a>
+                @endcan
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Serviço</th>
+                        <th>Status</th>
+                        <th class="text-end">Previsto</th>
+                        <th class="text-end">Real</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @forelse ($historico as $manutencao)
+                        <tr>
+                            <td class="text-nowrap">{{ data_br($manutencao->data_execucao ?? $manutencao->data_prevista) }}</td>
+                            <td class="small">{{ $manutencao->tipo->rotulo() }}</td>
+                            <td>{{ $manutencao->servico() }}</td>
+                            <td class="text-nowrap">
+                                <x-status-manutencao :manutencao="$manutencao" />
+                                @if ($manutencao->semComprovante())
+                                    <span class="badge text-bg-warning" title="Sem nota fiscal ou recibo">Sem comprovante</span>
+                                @endif
+                            </td>
+                            <td class="text-end text-nowrap">{{ moeda($manutencao->valor_previsto) }}</td>
+                            <td class="text-end text-nowrap">{{ moeda($manutencao->valor_real) }}</td>
+                            <td class="text-end text-nowrap">
+                                @can('registrarExecucao', $manutencao)
+                                    <a href="{{ route('manutencoes.execucao.create', $manutencao) }}" class="btn btn-sm btn-outline-primary" title="Registrar execução"><i class="bi bi-check2-circle"></i></a>
+                                @endcan
+                                <a href="{{ route('manutencoes.show', $manutencao) }}" class="btn btn-sm btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" class="text-center text-body-secondary py-4">Nenhuma manutenção realizada, cancelada ou atrasada.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="mb-3">{{ $historico->links() }}</div>
+    @endcan
 @endsection

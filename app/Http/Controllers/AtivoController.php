@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\StatusAtivo;
+use App\Enums\StatusManutencao;
 use App\Http\Requests\SalvarAtivoRequest;
 use App\Models\Ativo;
 use App\Models\Responsavel;
@@ -61,6 +62,17 @@ class AtivoController extends Controller
                 ->orderBy('descricao')
                 ->get(),
             'pendentes' => $this->ativos->pendentes($ativo),
+            'historico' => $ativo->manutencoes()
+                ->historico()
+                ->with(['ativo', 'plano', 'anexos'])
+                ->orderByRaw('COALESCE(data_execucao, data_prevista) DESC')
+                ->orderByDesc('id')
+                ->paginate(15, pageName: 'historico'),
+            // SUM em SQL devolve string decimal; ->sum() do Laravel converteria para float.
+            'totalGasto' => $ativo->manutencoes()
+                ->where('status', StatusManutencao::Realizada)
+                ->selectRaw('COALESCE(SUM(valor_real), 0) as total')
+                ->value('total'),
         ]);
     }
 
