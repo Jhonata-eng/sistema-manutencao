@@ -2,15 +2,24 @@ body {
     background-color: #f4f6f9;
 }
 
+:root {
+    --altura-cabecalho: 56px;
+}
+
 .menu-lateral {
     --largura-menu: 240px;
 }
 
 @media (min-width: 992px) {
+    /* Menu fixo: não rola com a página; se não couber na tela, rola sozinho. */
     .menu-lateral {
         width: var(--largura-menu);
-        min-height: calc(100vh - 56px);
         flex-shrink: 0;
+        position: sticky;
+        top: var(--altura-cabecalho);
+        align-self: flex-start;
+        height: calc(100vh - var(--altura-cabecalho));
+        overflow-y: auto;
     }
 }
 
