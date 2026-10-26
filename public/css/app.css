@@ -59,3 +59,71 @@ body {
         white-space: nowrap;
     }
 }
+
+/* Calendário de manutenções: cada evento traz o status no texto do título e uma barra de cor à esquerda. */
+.calendario {
+    min-width: 860px;
+    table-layout: fixed;
+}
+
+.calendario td {
+    height: 7.5rem;
+    vertical-align: top;
+    padding: .35rem;
+}
+
+.calendario td.fora-do-mes {
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+}
+
+.calendario td.hoje {
+    box-shadow: inset 0 0 0 2px var(--bs-primary);
+}
+
+.evento-calendario {
+    display: block;
+    margin-bottom: 2px;
+    padding: 1px 4px;
+    border-left: 3px solid var(--cor-estado);
+    background-color: var(--bs-tertiary-bg);
+    border-radius: 2px;
+    color: var(--bs-body-color);
+    font-size: .75rem;
+    line-height: 1.3;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.evento-calendario:hover {
+    background-color: var(--bs-secondary-bg);
+}
+
+.legenda-calendario {
+    display: inline-block;
+    width: .75rem;
+    height: .75rem;
+    margin-right: .3rem;
+    vertical-align: -1px;
+    border-radius: 2px;
+    background-color: var(--cor-estado);
+}
+
+.estado-prevista { --cor-estado: var(--bs-primary); }
+.estado-atrasada { --cor-estado: var(--bs-danger); }
+.estado-realizada { --cor-estado: var(--bs-success); }
+.estado-cancelada { --cor-estado: var(--bs-secondary); }
+
+/* Indicadores do painel */
+.indicador-valor {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.area-grafico {
+    position: relative;
+    height: 280px;
+}

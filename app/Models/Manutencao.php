@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\StatusManutencao;
 use App\Enums\TipoAnexo;
 use App\Enums\TipoManutencao;
+use Carbon\CarbonImmutable;
 use Database\Factories\ManutencaoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -99,6 +100,12 @@ class Manutencao extends Model
             && ! $this->anexos->contains(fn (Anexo $anexo) => $anexo->eComprovante());
     }
 
+    /** Posição no tempo: a data de execução, se realizada; senão a prevista (ver FiltroManutencoes::DATA_EFETIVA). */
+    public function dataEfetiva(): ?CarbonImmutable
+    {
+        return $this->data_execucao ?? $this->data_prevista;
+    }
+
     public function estaAtrasada(): bool
     {
         return $this->status === StatusManutencao::Prevista && $this->data_prevista?->lt(today());
@@ -109,14 +116,14 @@ class Manutencao extends Model
     protected function visivelPara(Builder $query, User $usuario): void
     {
         if (! $usuario->veTodasCidades()) {
-            $query->whereIn('ativo_id', Ativo::withTrashed()->visivelPara($usuario)->select('id'));
+            $query->whereIn($query->qualifyColumn('ativo_id'), Ativo::withTrashed()->visivelPara($usuario)->select('id'));
         }
     }
 
     #[Scope]
     protected function semComprovanteAnexado(Builder $query): void
     {
-        $query->where('status', StatusManutencao::Realizada)
+        $query->where($query->qualifyColumn('status'), StatusManutencao::Realizada)
             ->whereDoesntHave('anexos', fn (Builder $q) => $q->whereIn('tipo', TipoAnexo::comprovantes()));
     }
 
@@ -124,7 +131,14 @@ class Manutencao extends Model
     #[Scope]
     protected function pendentes(Builder $query): void
     {
-        $query->where('status', StatusManutencao::Prevista);
+        $query->where($query->qualifyColumn('status'), StatusManutencao::Prevista);
+    }
+
+    /** Pendentes com data prevista anterior a hoje. */
+    #[Scope]
+    protected function atrasadas(Builder $query): void
+    {
+        $query->pendentes()->where($query->qualifyColumn('data_prevista'), '<', today()->toDateString());
     }
 
     /** Histórico: tudo menos as pendentes futuras (realizadas, canceladas e atrasadas). */
@@ -132,14 +146,14 @@ class Manutencao extends Model
     protected function historico(Builder $query): void
     {
         $query->where(fn (Builder $q) => $q
-            ->where('status', '!=', StatusManutencao::Prevista)
-            ->orWhere('data_prevista', '<', today()->toDateString()));
+            ->where($query->qualifyColumn('status'), '!=', StatusManutencao::Prevista)
+            ->orWhere($query->qualifyColumn('data_prevista'), '<', today()->toDateString()));
     }
 
     /** Pendentes com data prevista de hoje em diante. */
     #[Scope]
     protected function pendentesFuturas(Builder $query): void
     {
-        $query->where('status', StatusManutencao::Prevista)->where('data_prevista', '>=', today()->toDateString());
+        $query->pendentes()->where($query->qualifyColumn('data_prevista'), '>=', today()->toDateString());
     }
 }

@@ -34,6 +34,7 @@ As portas podem ser trocadas no `.env` (`APP_PORT`, `FORWARD_DB_PORT`).
 
 - `DatabaseSeeder` (padrão): permissões e os perfis Administrador, Gestor, Técnico e Visualizador. Pode ser rodado de novo sem duplicar nem sobrescrever perfis editados.
 - Primeiro administrador: `php artisan app:criar-admin` (interativo, ou com `--nome`, `--email` e `--senha`).
+- `DemonstracaoSeeder` (opcional, **só para testes**): `php artisan db:seed --class=DemonstracaoSeeder`. Cria 20 ativos `DEMO-*` em quatro cidades com 12 meses de histórico e 12 de previsão, para ver o painel com dados. Exige um administrador, roda uma única vez e cria dois usuários de exemplo com a senha `demo12345`: `tecnico.demo@exemplo.com.br` (Técnico, Campinas) e `gestor.demo@exemplo.com.br` (Gestor, Sorocaba e Jundiaí). Não rode em produção.
 
 ## Configuração específica (`.env`)
 

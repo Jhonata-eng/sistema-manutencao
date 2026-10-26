@@ -1,14 +1,22 @@
 <ul class="nav flex-column py-2">
-    <x-menu-item rota="inicio" icone="house">Início</x-menu-item>
+    <x-menu-item rota="inicio" :icone="auth()->user()->can('dashboard.visualizar') ? 'speedometer2' : 'house'">
+        {{ auth()->user()->can('dashboard.visualizar') ? 'Painel' : 'Início' }}
+    </x-menu-item>
 
     @can('ativos.visualizar')
         <x-menu-item rota="ativos.index" ativo="ativos.*" icone="hdd-rack">Ativos</x-menu-item>
     @endcan
 
-    @can('manutencoes.lancar_nao_programada')
+    @canany(['manutencoes.visualizar', 'manutencoes.lancar_nao_programada'])
         <li class="menu-secao">Manutenções</li>
-        <x-menu-item rota="manutencoes.nao-programada.create" ativo="manutencoes.nao-programada.*" icone="wrench-adjustable">Lançar não programada</x-menu-item>
-    @endcan
+        @can('manutencoes.visualizar')
+            <x-menu-item rota="manutencoes.index" ativo="manutencoes.index" icone="list-check">Visão unificada</x-menu-item>
+            <x-menu-item rota="manutencoes.calendario" ativo="manutencoes.calendario" icone="calendar3">Calendário</x-menu-item>
+        @endcan
+        @can('manutencoes.lancar_nao_programada')
+            <x-menu-item rota="manutencoes.nao-programada.create" ativo="manutencoes.nao-programada.*" icone="wrench-adjustable">Lançar não programada</x-menu-item>
+        @endcan
+    @endcanany
 
     @can('cadastros.gerenciar')
         <li class="menu-secao">Cadastros</li>

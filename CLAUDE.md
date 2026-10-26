@@ -24,6 +24,7 @@ O PHP do host não tem as extensões do Laravel: rode PHP, Composer e Artisan de
 | Recriar o banco de dev | `docker compose exec app php artisan migrate:fresh --seed` e depois `app:criar-admin` |
 | Criar administrador | `docker compose exec app php artisan app:criar-admin` |
 | Gerar previstas até o horizonte | `docker compose exec app php artisan manutencoes:estender-horizonte` (o serviço `scheduler` roda isso todo dia à 01:00) |
+| Dados de demonstração (opcional, nunca em produção) | `docker compose exec app php artisan db:seed --class=DemonstracaoSeeder` |
 
 Login de desenvolvimento (só no banco local): `admin@exemplo.com.br` / `admin12345`.
 
@@ -39,6 +40,8 @@ Login de desenvolvimento (só no banco local): `admin@exemplo.com.br` / `admin12
 - Testes: helpers em `tests/Pest.php` (`usuarioCom([...permissões], ...$cidades)`, `arquivoFalso('pdf'|'jpg'|'png'|'xml'|'txt')`, `imagemFalsa()`, `dadosPlano()`). Para upload use `arquivoFalso()`: ele cria um arquivo real, então o MIME é detectado pelo conteúdo como em produção (o `UploadedFile::fake()` deduz pelo nome, e o container nem tem GD para `fake()->image()`).
 - Listas cujas linhas usam `@can` sobre um registro precisam carregar antes (eager loading) as relações que a Policy consulta (ex.: `with('ativo')`): fora de produção, o modo estrito lança exceção ao carregar relação linha a linha.
 - Somas de dinheiro: `selectRaw('COALESCE(SUM(col), 0) as total')->value('total')`. O `->sum()` do Laravel converte o resultado para float.
+- Escopos de `Manutencao` qualificam as colunas (`manutencoes.status`), porque as consultas do painel fazem join com `ativos`, que também tem `status`.
+- Gráficos: `public/js/graficos.js` (Chart.js estático) lê o JSON de `#dados-graficos`. Cores em ordem fixa azul `#2a78d6`, laranja `#eb6834`, verde-água `#1baf7a` (validadas para daltonismo); barras de até 24px com ponta de 4px; um só eixo de valores; cada gráfico tem uma tabela "Ver dados em tabela" logo abaixo.
 - Rótulos de campos nas mensagens de validação: `lang/pt_BR/validation.php` → `attributes`.
 
 ## Regras essenciais
@@ -51,6 +54,7 @@ Login de desenvolvimento (só no banco local): `admin@exemplo.com.br` / `admin12
 - **Datas**: colunas `DATE`, "hoje" no fuso `APP_TIMEZONE`, exibição com `data_br()` / `data_hora_br()`, campos `type="date"`.
 - **Cadastros em uso** são inativados, nunca excluídos: a exclusão passa por `ExclusaoProtegida`, que usa as FKs `RESTRICT` como definição de "em uso" (novas tabelas que referenciem um cadastro devem usar `restrictOnDelete()`).
 - **Manutenções**: status gravados `prevista | realizada | cancelada`; "atrasada" e "sem comprovante" são calculados na consulta. Geração de ocorrências, edição de plano e cálculo de orçamento seguem `docs/PROGRESSO.md` → "Regras de negócio aprovadas".
+- **Consultas de manutenções**: lista, calendário, exportação, totais e painel usam o `FiltroManutencoes` (escopo de cidades + filtros). O período usa por padrão a data efetiva (`FiltroManutencoes::DATA_EFETIVA`: execução se realizada, senão a prevista). Todo número do painel leva, ao ser clicado, a uma lista cujo rodapé soma o mesmo valor; um teste garante isso.
 - **Ações sobre manutenções** (execução, não programada, cancelar, reagendar, corrigir valor) passam pelo `ManutencaoService`, e anexos pelo `AnexoService`. A `ManutencaoPolicy` exige permissão + cidade + status (prevista para executar/cancelar/reagendar, realizada para anexar/corrigir). `Manutencao` não usa `Auditavel`: cada ação registra o próprio evento (`executada`, `reagendada`, `cancelada`, `valor_corrigido`, `anexo_enviado`...), mostrado na tela da manutenção.
 - **Anexos**: tipo conferido pelo conteúdo (`mimetypes`) e pela extensão, tamanho de `ANEXO_TAMANHO_MAX_MB`, arquivo no disco privado com nome aleatório, download só pela rota `anexos.show` (AnexoPolicy); XML é sempre baixado, nunca aberto inline.
 - **Ocorrências dos planos**: só o `GeradorOcorrencias` cria, recalcula ou cancela automaticamente as previstas (o `PlanoService` e o `AtivoService` o chamam). `(plano_id, data_referencia)` é único e impede duplicar; o cancelamento automático zera `data_referencia` para liberar a data se o plano voltar a ficar ativo, e o cancelamento manual a mantém.

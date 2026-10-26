@@ -1,6 +1,6 @@
 # Progresso
 
-Última atualização: 26/10/2026, ao fim da Fase 4.
+Última atualização: 26/10/2026, ao fim da Fase 5.
 
 ## Situação
 
@@ -9,9 +9,9 @@
 | 1 | Setup, layout, autenticação, usuários, perfis/permissões, auditoria base | Concluída (commit `6a8e870`) |
 | 2 | Cadastros auxiliares e ativos | Concluída (commit `2a688b5`) |
 | 3 | Planos recorrentes, geração de ocorrências, comando agendado | Concluída (commit `5e28a76`) |
-| 4 | Execução, não programada, anexos, cancelamento/reagendamento, correção de valor | **Concluída**, aguardando aprovação |
-| 5 | Dashboard e visão unificada (lista, calendário, exportação) | Próxima |
-| 6 | Revisão de segurança e performance, README completo | — |
+| 4 | Execução, não programada, anexos, cancelamento/reagendamento, correção de valor | Concluída (commit `dcb6fee`) |
+| 5 | Dashboard e visão unificada (lista, calendário, exportação) | **Concluída**, aguardando aprovação |
+| 6 | Revisão de segurança e performance, README completo | Próxima |
 
 ## Fase 1: o que foi feito
 
@@ -57,14 +57,23 @@
 - **Correção de N+1** encontrada no teste no navegador: listas com `@can` por linha agora carregam `ativo` antes; `anexos()` usa `chaperone`. Teste de regressão com várias linhas e usuário com todas as permissões.
 - **Testes**: 195 testes, 633 asserções (execução com anexo, sem comprovante, validações, permissões e status, não programada com busca e escopo, cancelamento que mantém a data ocupada, reagendamento com histórico, tipos de anexo pelo conteúdo, extensão, tamanho máximo, download protegido, XML como download, exclusão de anexo, correção de valor com histórico/comprovante existente ou novo/várias correções/validações, total gasto e histórico do ativo, escopo incluindo ativos excluídos).
 
-## Próximos passos (Fase 5)
+## Fase 5: o que foi feito
 
-1. `FiltroManutencoes`: uma consulta (escopo do usuário + filtros de período, status incluindo "atrasada", cidade, tipo de equipamento, ativo, responsável, fornecedor, programada/não programada, sem comprovante) usada pela lista, calendário, exportação, totais e clique nos gráficos.
-2. Visão unificada: lista paginada com totais do filtro no rodapé (previsto, realizado, diferença = realizado − previsto), calendário mensal (Blade), exportação CSV (BOM, `;`, vírgula decimal, em fluxo) com `relatorios.exportar`.
-3. `DashboardService`: cards (previsto/realizado do mês, atrasadas com quantidade e valor, próximos 30 dias, total de ativos), previsão 12 meses (pendentes), realizado 12 meses empilhado programada/não programada com linha do previsto (regra 5), distribuição por tipo e cidade com período; listas de atrasadas e próximas com atalho para registrar; filtros por cidade, tipo e responsável; clique na barra abre a visão unificada do mês. Somas no SQL.
-4. Chart.js estático em `public/vendor/chart.js/4.6.1/`.
-5. Seeder de demonstração separado e opcional (`DemonstracaoSeeder`).
-6. Testes dos cálculos do dashboard e dos totais.
+- **`FiltroManutencoes`**: a consulta única (escopo + período + status, inclusive "atrasada" + cidade, tipo de equipamento, responsável, patrimônio, ativo, fornecedor, programada/não programada, sem comprovante) e os totais (previsto sem canceladas, realizado, diferença), somados no SQL. O período usa a data efetiva por padrão, com opção de data prevista ou de execução. `FiltrarManutencoesRequest` valida os filtros e converte `mes=AAAA-MM` no período do mês.
+- **Visão unificada** (`/manutencoes`): lista paginada com filtros, totais do filtro no rodapé e atalhos para registrar e ver cada manutenção. **Calendário mensal** (`/manutencoes/calendario`), de domingo a sábado, com cor por status, legenda e totais. **Exportação CSV** (`/manutencoes/exportar`, exige `relatorios.exportar`): BOM, `;`, vírgula decimal, gerada em fluxo, com proteção contra fórmulas.
+- **Painel** (`/`, exige `dashboard.visualizar`; sem a permissão, a pessoa vê uma página de boas-vindas): filtros de cidade, tipo de equipamento e responsável; 5 indicadores; previsão de 12 meses; realizado de 12 meses empilhado (programadas e não programadas) com a linha do previsto; distribuição do gasto por tipo e por cidade com período escolhido; listas de atrasadas e próximas com atalho "Registrar". Cada barra e cada indicador abrem a visão unificada com o mesmo recorte.
+- **`DashboardService`**: todos os números vêm do `FiltroManutencoes`, agrupados por mês com `DATE_FORMAT` (MySQL/MariaDB), em string decimal.
+- **Gráficos**: Chart.js 4.6.1 estático e `public/js/graficos.js`, com paleta validada pelo script da skill de visualização (azul, laranja e verde-água: daltonismo OK; o verde-água tem contraste < 3:1, compensado pela tabela de dados abaixo de cada gráfico).
+- **`DemonstracaoSeeder`** (opcional): 20 ativos `DEMO-*`, cerca de 400 manutenções com histórico, notas, cancelamentos, atrasadas, não programadas e correções, além de dois usuários de exemplo.
+- **Escopos de `Manutencao`** passaram a qualificar as colunas (necessário para os joins do painel).
+- **Testes**: 223 testes, 743 asserções (cálculos do painel com cenário fixo, filtros do painel, número do card/barra = total da lista aberta, painel e boas-vindas, filtros e totais da visão unificada, data efetiva × prevista × execução, escopo, calendário e "+N mais", CSV com formato, filtro e proteção contra fórmulas, permissão de exportar, seeder de demonstração).
+
+## Próximos passos (Fase 6)
+
+1. Revisão de segurança: percorrer todas as rotas com usuário de outra cidade e sem permissão (teste que varre `route:list`), cabeçalhos HTTP (X-Frame-Options, Referrer-Policy, CSP básica), cookies `secure` em produção, `APP_DEBUG=false`, validação server-side de todos os formulários, saída escapada (`{!! !!}` ausente), `@csrf` em todos os forms.
+2. Desempenho: `EXPLAIN` nas consultas do painel e da visão unificada com volume (ex.: 50 mil manutenções), índices que faltarem, consultas por linha (o modo estrito já barra em desenvolvimento), cache de configuração/rotas/views no deploy.
+3. README completo: instalação em Linux (Nginx ou Apache + PHP-FPM 8.3, extensões, MySQL/MariaDB), `.env` de produção, permissões de `storage/`, cron `* * * * * php artisan schedule:run`, `upload_max_filesize`/`post_max_size`/`client_max_body_size`, `app:criar-admin`, backup do banco e de `storage/app/private`, atualização de versão.
+4. Revisão final do `CLAUDE.md` e do `docs/PROGRESSO.md`.
 
 ## Modelo de dados planejado
 
@@ -164,9 +173,21 @@ Respostas do usuário à proposta inicial (todas aprovadas em 23/10/2026):
 - **Histórico na tela do ativo**: realizadas, canceladas e atrasadas; as pendentes futuras ficam na tela de cada plano (e na coluna "Próxima").
 - **Arquivos** ficam com nome aleatório em `storage/app/private/anexos/AAAA/MM`; o nome original (até 250 caracteres) é usado só para exibição e no download.
 
+### Tomadas na Fase 5 (não especificadas; avisadas ao usuário)
+
+- **Visão unificada abre no mês atual** quando acessada sem filtros ("Limpar" volta ao mês atual); para ver tudo, apague as datas e filtre.
+- **Período pela data efetiva** (execução se realizada, senão prevista), com a opção "Período pela" data prevista ou de execução. O indicador "Previsto no mês" e a linha do previsto abrem a lista por data prevista, para o total bater.
+- **Status "Prevista (todas)"** inclui as atrasadas; "Atrasada" é um filtro à parte. O filtro de patrimônio aceita parte do número.
+- **Rodapé**: previsto sem canceladas, realizado e diferença (realizado − previsto). Num período futuro a diferença aparece negativa, porque ainda não houve execução.
+- **Calendário**: domingo a sábado, até 4 manutenções por dia e "+N mais" levando à lista do dia, posicionadas pela data efetiva.
+- **CSV**: uma linha por manutenção, 16 colunas, valores sem separador de milhar; texto que começa com `= + - @` ganha um apóstrofo (para não virar fórmula). Sem filtros, exporta o mês atual, como a lista.
+- **Painel**: "Próximos 30 dias" = de hoje até hoje + 30; o valor de "Atrasadas" é a soma do previsto; "Ativos" conta os não excluídos (com quantos estão em operação); a previsão começa no mês atual e inclui as atrasadas do próprio mês; o realizado vai até o mês atual; a distribuição mostra, por padrão, do dia 1º de 11 meses atrás até hoje, com todas as categorias (sem agrupar em "Outros").
+- **Gráficos só no tema claro** (o sistema não tem tema escuro).
+- **Seeder de demonstração** separado, que roda uma vez, exige um administrador e cria dois usuários de exemplo (`demo12345`). Não deve rodar em produção.
+
 ## Observações para retomar
 
 - Containers: `docker compose up -d` na raiz; o PHP do host não serve para rodar o projeto.
 - Prints de verificação visual: Playwright via container `mcr.microsoft.com/playwright:v1.61.1-noble` com `--network host` (o Chromium do WSL não tem as bibliotecas do sistema). Para ver datas como um usuário brasileiro, lance o Chromium com `--lang=pt-BR`.
-- O banco de desenvolvimento tem dados de exemplo criados à mão (Campinas, Sorocaba, Itu inativa, 4 ativos, 2 fornecedores, 1 responsável, 2 planos no AC-0001 com uma execução corrigida e um reagendamento, 1 não programada no GER-0001). O seeder de demonstração oficial vem na Fase 5.
+- O banco de desenvolvimento tem os dados criados à mão nas fases anteriores (AC-0001, GER-0001 etc.) e o `DemonstracaoSeeder` já carregado (20 ativos `DEMO-*`, usuários `tecnico.demo` e `gestor.demo` com senha `demo12345`).
 - Em testes, use `$this->travelTo(...)` para fixar "hoje": as regras de pendente futura e atrasada dependem da data.

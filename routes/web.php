@@ -39,6 +39,13 @@ Route::middleware('auth')->group(function () {
     Route::resource('ativos.planos', PlanoController::class)->shallow()->except('index')->parameters(['planos' => 'plano']);
     Route::post('planos/{plano}/atualizar-valor-medio', [PlanoController::class, 'atualizarValorMedio'])->name('planos.atualizar-valor-medio');
 
+    // Visão unificada, calendário e exportação: escopo de cidades aplicado pelo FiltroManutencoes.
+    Route::middleware('can:manutencoes.visualizar')->group(function () {
+        Route::get('manutencoes', [ManutencaoController::class, 'index'])->name('manutencoes.index');
+        Route::get('manutencoes/calendario', [ManutencaoController::class, 'calendario'])->name('manutencoes.calendario');
+        Route::get('manutencoes/exportar', [ManutencaoController::class, 'exportar'])->middleware('can:relatorios.exportar')->name('manutencoes.exportar');
+    });
+
     // Manutenções: permissão + cidade + status exigido na ManutencaoPolicy (via #[Authorize] ou Form Request).
     Route::middleware('can:manutencoes.lancar_nao_programada')->group(function () {
         Route::get('manutencoes/nao-programada', [NaoProgramadaController::class, 'create'])->name('manutencoes.nao-programada.create');
