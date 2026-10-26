@@ -12,6 +12,20 @@ services:
       mysql:
         condition: service_healthy
 
+  # Equivalente ao cron "* * * * * php artisan schedule:run" da produção.
+  scheduler:
+    build:
+      context: ./docker/php
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    command: ["php", "artisan", "schedule:work"]
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+
   nginx:
     image: nginx:1.27-alpine
     ports:

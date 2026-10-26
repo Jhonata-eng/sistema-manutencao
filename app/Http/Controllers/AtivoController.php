@@ -45,7 +45,7 @@ class AtivoController extends Controller
 
     public function store(SalvarAtivoRequest $request): RedirectResponse
     {
-        $ativo = $this->ativos->salvar(new Ativo, $this->dados($request), $request->user(), $request->file('foto'));
+        $ativo = $this->ativos->salvar(new Ativo, $request->dados(), $request->user(), $request->file('foto'));
 
         return redirect()->route('ativos.show', $ativo)->with('sucesso', "Ativo {$ativo->patrimonio} cadastrado.");
     }
@@ -53,7 +53,15 @@ class AtivoController extends Controller
     #[Authorize('view', 'ativo')]
     public function show(Ativo $ativo): View
     {
-        return view('ativos.show', ['ativo' => $ativo->load(['tipo', 'cidade', 'responsavel', 'criador'])]);
+        return view('ativos.show', [
+            'ativo' => $ativo->load(['tipo', 'cidade', 'responsavel', 'criador']),
+            'planos' => $ativo->planos()
+                ->withMin(['manutencoes as proxima_ocorrencia' => fn ($q) => $q->pendentesFuturas()], 'data_prevista')
+                ->orderByDesc('ativo')
+                ->orderBy('descricao')
+                ->get(),
+            'pendentes' => $this->ativos->pendentes($ativo),
+        ]);
     }
 
     #[Authorize('update', 'ativo')]
@@ -64,15 +72,15 @@ class AtivoController extends Controller
 
     public function update(SalvarAtivoRequest $request, Ativo $ativo): RedirectResponse
     {
-        $this->ativos->salvar($ativo, $this->dados($request), $request->user(), $request->file('foto'), $request->boolean('remover_foto'));
+        $this->ativos->salvar($ativo, $request->dados(), $request->user(), $request->file('foto'), $request->boolean('remover_foto'));
 
         return redirect()->route('ativos.show', $ativo)->with('sucesso', "Ativo {$ativo->patrimonio} atualizado.");
     }
 
     #[Authorize('delete', 'ativo')]
-    public function destroy(Ativo $ativo): RedirectResponse
+    public function destroy(Request $request, Ativo $ativo): RedirectResponse
     {
-        $this->ativos->excluir($ativo);
+        $this->ativos->excluir($ativo, $request->user());
 
         return redirect()->route('ativos.index')->with('sucesso', "Ativo {$ativo->patrimonio} excluído.");
     }
@@ -85,11 +93,6 @@ class AtivoController extends Controller
         return Storage::disk('local')->response($ativo->foto_path);
     }
 
-    private function dados(SalvarAtivoRequest $request): array
-    {
-        return $request->safe()->except(['foto', 'remover_foto']);
-    }
-
     private function formulario(Request $request, Ativo $ativo): View
     {
         return view('ativos.form', [
@@ -97,6 +100,7 @@ class AtivoController extends Controller
             'tipos' => TipoEquipamento::selecionaveis($ativo->tipo_equipamento_id)->orderBy('nome')->pluck('nome', 'id'),
             'cidades' => $request->user()->cidadesAcessiveis()->selecionaveis($ativo->cidade_id)->orderBy('nome')->get()->pluck('nome_uf', 'id'),
             'responsaveis' => Responsavel::selecionaveis($ativo->responsavel_id)->orderBy('nome')->pluck('nome', 'id'),
+            'pendentes' => $ativo->emOperacao() ? $this->ativos->pendentes($ativo) : 0,
         ]);
     }
 }

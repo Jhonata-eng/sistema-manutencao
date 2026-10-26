@@ -1,15 +1,15 @@
 # Progresso
 
-Última atualização: 23/10/2026, ao fim da Fase 2.
+Última atualização: 26/10/2026, ao fim da Fase 3.
 
 ## Situação
 
 | Fase | Escopo | Situação |
 |---|---|---|
 | 1 | Setup, layout, autenticação, usuários, perfis/permissões, auditoria base | Concluída (commit `6a8e870`) |
-| 2 | Cadastros auxiliares e ativos | **Concluída**, aguardando aprovação |
-| 3 | Planos recorrentes, geração de ocorrências, comando agendado | Próxima |
-| 4 | Execução, não programada, anexos, cancelamento/reagendamento, correção de valor | — |
+| 2 | Cadastros auxiliares e ativos | Concluída (commit `2a688b5`) |
+| 3 | Planos recorrentes, geração de ocorrências, comando agendado | **Concluída**, aguardando aprovação |
+| 4 | Execução, não programada, anexos, cancelamento/reagendamento, correção de valor | Próxima |
 | 5 | Dashboard e visão unificada (lista, calendário, exportação) | — |
 | 6 | Revisão de segurança e performance, README completo | — |
 
@@ -36,26 +36,32 @@
 - **Escopo por cidade**: `Ativo::visivelPara($usuario)` nas listagens, `AtivoPolicy` (permissão + cidade) nas ações via `#[Authorize]`, cidade do formulário restrita às acessíveis e validada no backend.
 - **Testes**: 115 testes, 310 asserções (Fase 1 + cadastros, CPF/CNPJ, ativos, foto, patrimônio único com excluídos, inativos, troca de ID na URL em 5 rotas, menu por permissão).
 
-## Próximos passos (Fase 3)
+## Fase 3: o que foi feito
 
-1. Migrations `planos_manutencao` e `manutencoes` (com `data_referencia`, chave única plano + data_referencia, índices de status/datas), FKs `restrictOnDelete()` para fornecedor.
-2. `GeradorOcorrencias`: cálculo de datas (dia 31, 29/02, data de término), geração no horizonte, recálculo ao editar plano (regras 1–4 abaixo), cancelamento ao inativar plano.
-3. Comando diário `manutencoes:estender-horizonte` no agendador (`routes/console.php`) e serviço `scheduler` no `compose.yaml`.
-4. Telas de planos (dentro do ativo), com média real e "atualizar valor médio" (regra 11).
-5. Ativo: ao mudar para inativo/baixado ou excluir, pedir confirmação e cancelar as pendentes (regra 3); seção de planos na tela de detalhes.
-6. Testes pesados de datas e de edição de plano.
+- **Tabelas** `planos_manutencao` e `manutencoes` (esta já com todos os campos de execução e cancelamento que a Fase 4 usa), chave única `(plano_id, data_referencia)`, índices `(status, data_prevista)` e `(data_execucao, tipo)`; enums `StatusManutencao` e `TipoManutencao`.
+- **Recorrência** (`Recorrencia::datas`): k-ésima data = início + k × N meses sem overflow (dia 31 → último dia do mês; 29/02 → 28/02 nos anos não bissextos), janela com início inclusivo e fim exclusivo, término inclusivo.
+- **`GeradorOcorrencias`**: `gerar` (janela de hoje até hoje + horizonte, `insertOrIgnore`), `recalcular` (mudança de calendário), `atualizarValorPrevisto`, `cancelarPendentes` (cancelamento automático com um evento de auditoria) e `estenderHorizonte` (comando diário).
+- **`PlanoService`**: aplica as regras 1–4 e 11 ao salvar, inativar, reativar, excluir e "atualizar valor médio".
+- **Comando** `manutencoes:estender-horizonte`, agendado todo dia à 01:00 (`routes/console.php`, `withoutOverlapping`); serviço `scheduler` (`schedule:work`) no `compose.yaml`.
+- **Telas**: planos dentro do ativo (lista com próxima data na tela do ativo), formulário com periodicidade nomeada ou personalizada e valor em R$, detalhe do plano com média real e lista das manutenções; `PlanoManutencaoPolicy` (permissão + cidade).
+- **Ativo fora de operação ou excluído**: inativa os planos e cancela todas as pendentes, com confirmação obrigatória (caixa validada no backend) na edição e contagem no aviso de exclusão.
+- **Testes**: 152 testes, 437 asserções (recorrência pura, geração com dia 31, término, personalizada, validações, comando sem duplicar, reagendada/cancelada não recriadas, edição de valor e de periodicidade, reagendada de data passada, inativação/reativação, exclusão de plano, média real, acesso por cidade, ativo fora de operação).
+
+## Próximos passos (Fase 4)
+
+1. Registrar execução de uma prevista (data, valor real pré-preenchido com o previsto, fornecedor com padrão do plano, descrição, anexos opcionais) com `registrado_por` e auditoria `executada`.
+2. Lançar não programada: busca de ativo por patrimônio, modelo ou cidade (só ativos acessíveis); já nasce realizada (regra 7).
+3. Cancelar e reagendar previstas com justificativa obrigatória (cancelamento manual mantém `data_referencia`; reagendar muda só `data_prevista`), auditados com motivo.
+4. Anexos: tabela `anexos` (FK `restrictOnDelete`), tipos PDF/JPG/PNG/XML validados pelo MIME real, tamanho de `ANEXO_TAMANHO_MAX_MB`, metadados, armazenamento privado, download protegido por permissão e cidade, exclusão com `anexos.excluir`.
+5. Correção de valor (regra 9): tabela `correcoes_valor`, motivo e comprovante obrigatórios, histórico na tela da manutenção.
+6. Tela da manutenção (dados, anexos, histórico); "sem comprovante" calculado (regra 8); histórico completo e total gasto na tela do ativo.
+7. `Manutencao::visivelPara($usuario)` incluindo ativos excluídos (regra 13) e `ManutencaoPolicy`.
 
 ## Modelo de dados planejado
 
-Tabelas já criadas: `users`, `perfis`, `permissoes`, `perfil_permissao`, `cidades`, `cidade_user`, `auditoria`, `tipos_equipamento`, `responsaveis`, `fornecedores`, `ativos` (+ `sessions`, `cache`, `jobs` do Laravel). As demais, por fase:
+Tabelas já criadas: `users`, `perfis`, `permissoes`, `perfil_permissao`, `cidades`, `cidade_user`, `auditoria`, `tipos_equipamento`, `responsaveis`, `fornecedores`, `ativos`, `planos_manutencao`, `manutencoes` (+ `sessions`, `cache`, `jobs` do Laravel). As demais (Fase 4):
 
 ```
-planos_manutencao  id, ativo_id, descricao, periodicidade_meses, data_inicio, data_termino?, valor_estimado,
-                   fornecedor_id?, observacoes?, ativo, gerado_ate
-manutencoes        id, ativo_id, plano_id?, tipo(programada|nao_programada), data_referencia?, data_prevista?,
-                   data_execucao?, status(prevista|realizada|cancelada), valor_previsto?, valor_real?,
-                   fornecedor_id?, descricao?, observacoes?, registrado_por?, motivo_cancelamento?,
-                   cancelado_por?, cancelado_em?     único(plano_id, data_referencia)
 anexos             id, manutencao_id, tipo(nota_fiscal|recibo|laudo|foto|outro), numero_nota?, data_emissao?,
                    valor_nota?, nome_original, caminho, mime, tamanho, enviado_por
 correcoes_valor    id, manutencao_id, valor_anterior, valor_novo, motivo, anexo_id, user_id, created_at
@@ -121,8 +127,23 @@ Respostas do usuário à proposta inicial (todas aprovadas em 23/10/2026):
 - **Cancelamento de ocorrências ao inativar, dar baixa ou excluir ativo** fica para a Fase 3, quando as ocorrências existirem.
 - **Campos de data**: seletor nativo (`type="date"`) centralizado em `x-campo-data`. Ele mostra dd/mm/aaaa quando o navegador está em português e mm/dd/aaaa quando está em inglês (verificado no Chromium). Pendente: o usuário decide se mantém ou troca por campo com máscara fixa dd/mm/aaaa.
 
+### Tomadas na Fase 3 (não especificadas; avisadas ao usuário)
+
+- **Janela de geração**: de hoje (ou da primeira ocorrência, se for depois) até hoje + horizonte, **fim exclusivo**. Um plano mensal tem 12 previstas à frente; um anual tem 1 (a seguinte entra quando faltar menos de 12 meses).
+- **`gerado_ate` saiu do modelo**: a janela é recalculada a cada execução e a chave `(plano_id, data_referencia)` garante que nada se duplica.
+- **Primeira ocorrência ≥ hoje no cadastro do plano**, para não criar atrasadas retroativas; na edição a data inicial pode ficar no passado. Manutenção já feita antes do plano entra como não programada.
+- **Plano só fica ativo em ativo em operação** (e não excluído).
+- **Ativo fora de operação ou excluído inativa os planos**, além de cancelar as pendentes; reativar o ativo não reativa os planos (o usuário reativa cada um, que volta a gerar a partir de hoje).
+- **Confirmação** do cancelamento: caixa obrigatória, validada no backend, que aparece ao escolher Inativo/Baixado no ativo ou ao desligar o plano; na exclusão do ativo, o aviso do botão mostra quantas pendentes serão canceladas.
+- **Cancelamento automático libera a data do calendário** (`data_referencia = NULL`), para o plano reativado gerar de novo; o cancelamento manual (Fase 4) mantém a data, para o comando diário não recriar o que o usuário cancelou.
+- **Recálculo por mudança de calendário**: apaga as pendentes futuras cuja data de referência é de hoje em diante; uma pendente de data passada reagendada para o futuro é mantida (e recebe o novo valor, se o valor mudou).
+- **Auditoria das ocorrências automáticas**: não há um registro por ocorrência gerada ou apagada; ficam os eventos `ocorrencias_recalculadas` e `ocorrencias_canceladas` (com quantidade e datas) no plano ou no ativo.
+- **Periodicidade personalizada** de 1 a 120 meses. **Média real** arredondada a 2 casas; o botão "atualizar valor médio" só aparece quando a média difere do valor estimado.
+- **Comando diário** à 01:00, sem sobreposição; em desenvolvimento roda no serviço `scheduler` do Compose.
+
 ## Observações para retomar
 
 - Containers: `docker compose up -d` na raiz; o PHP do host não serve para rodar o projeto.
 - Prints de verificação visual: Playwright via container `mcr.microsoft.com/playwright:v1.61.1-noble` com `--network host` (o Chromium do WSL não tem as bibliotecas do sistema). Para ver datas como um usuário brasileiro, lance o Chromium com `--lang=pt-BR`.
-- O banco de desenvolvimento tem dados de exemplo criados à mão (Campinas, Sorocaba, Itu inativa, 4 ativos, 2 fornecedores, 1 responsável). O seeder de demonstração oficial vem na Fase 5.
+- O banco de desenvolvimento tem dados de exemplo criados à mão (Campinas, Sorocaba, Itu inativa, 4 ativos, 2 fornecedores, 1 responsável, 2 planos no AC-0001). O seeder de demonstração oficial vem na Fase 5.
+- Em testes, use `$this->travelTo(...)` para fixar "hoje": as regras de pendente futura e atrasada dependem da data.

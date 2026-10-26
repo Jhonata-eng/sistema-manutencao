@@ -1,8 +1,6 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Mantém sempre o horizonte de manutenções previstas (config manutencao.horizonte_meses) à frente.
+Schedule::command('manutencoes:estender-horizonte')->dailyAt('01:00')->withoutOverlapping();

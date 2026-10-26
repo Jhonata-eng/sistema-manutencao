@@ -29,6 +29,8 @@ class Auditoria extends Model
         'responsavel' => [Responsavel::class, 'Responsável'],
         'fornecedor' => [Fornecedor::class, 'Fornecedor'],
         'ativo' => [Ativo::class, 'Ativo'],
+        'plano' => [PlanoManutencao::class, 'Plano de manutenção'],
+        'manutencao' => [Manutencao::class, 'Manutenção'],
     ];
 
     public const EVENTOS = [
@@ -39,6 +41,8 @@ class Auditoria extends Model
         'cidades_alteradas' => 'Alteração de cidades vinculadas',
         'senha_alterada' => 'Troca da própria senha',
         'senha_redefinida' => 'Redefinição de senha',
+        'ocorrencias_canceladas' => 'Cancelamento de manutenções pendentes',
+        'ocorrencias_recalculadas' => 'Recálculo de manutenções futuras',
     ];
 
     protected function casts(): array

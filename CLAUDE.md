@@ -23,6 +23,7 @@ O PHP do host não tem as extensões do Laravel: rode PHP, Composer e Artisan de
 | Migrar | `docker compose exec app php artisan migrate` |
 | Recriar o banco de dev | `docker compose exec app php artisan migrate:fresh --seed` e depois `app:criar-admin` |
 | Criar administrador | `docker compose exec app php artisan app:criar-admin` |
+| Gerar previstas até o horizonte | `docker compose exec app php artisan manutencoes:estender-horizonte` (o serviço `scheduler` roda isso todo dia à 01:00) |
 
 Login de desenvolvimento (só no banco local): `admin@exemplo.com.br` / `admin12345`.
 
@@ -48,6 +49,8 @@ Login de desenvolvimento (só no banco local): `admin@exemplo.com.br` / `admin12
 - **Datas**: colunas `DATE`, "hoje" no fuso `APP_TIMEZONE`, exibição com `data_br()` / `data_hora_br()`, campos `type="date"`.
 - **Cadastros em uso** são inativados, nunca excluídos: a exclusão passa por `ExclusaoProtegida`, que usa as FKs `RESTRICT` como definição de "em uso" (novas tabelas que referenciem um cadastro devem usar `restrictOnDelete()`).
 - **Manutenções**: status gravados `prevista | realizada | cancelada`; "atrasada" e "sem comprovante" são calculados na consulta. Geração de ocorrências, edição de plano e cálculo de orçamento seguem `docs/PROGRESSO.md` → "Regras de negócio aprovadas".
+- **Ocorrências dos planos**: só o `GeradorOcorrencias` cria, recalcula ou cancela automaticamente as previstas (o `PlanoService` e o `AtivoService` o chamam). `(plano_id, data_referencia)` é único e impede duplicar; o cancelamento automático zera `data_referencia` para liberar a data se o plano voltar a ficar ativo, e o cancelamento manual a mantém.
+- Em `PlanoManutencao`, a relação com o ativo é `equipamento()`: `$plano->ativo` é a coluna booleana de situação.
 
 ## Fluxo de trabalho
 

@@ -10,6 +10,7 @@ use App\Http\Controllers\Cadastros\TipoEquipamentoController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\MinhaSenhaController;
 use App\Http\Controllers\PerfilController;
+use App\Http\Controllers\PlanoController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,10 @@ Route::middleware('auth')->group(function () {
     // Ativos: permissão + escopo por cidade na AtivoPolicy.
     Route::resource('ativos', AtivoController::class)->parameters(['ativos' => 'ativo']);
     Route::get('ativos/{ativo}/foto', [AtivoController::class, 'foto'])->name('ativos.foto');
+
+    // Planos: criados dentro do ativo, demais rotas rasas (planos/{plano}); permissão + cidade na PlanoManutencaoPolicy.
+    Route::resource('ativos.planos', PlanoController::class)->shallow()->except('index')->parameters(['planos' => 'plano']);
+    Route::post('planos/{plano}/atualizar-valor-medio', [PlanoController::class, 'atualizarValorMedio'])->name('planos.atualizar-valor-medio');
 
     Route::middleware('can:cadastros.gerenciar')->prefix('cadastros')->name('cadastros.')->group(function () {
         Route::resource('cidades', CidadeController::class)->except('show')->parameters(['cidades' => 'cidade']);

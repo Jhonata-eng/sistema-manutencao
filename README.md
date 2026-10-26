@@ -19,13 +19,14 @@ docker compose exec app php artisan migrate --seed
 docker compose exec app php artisan app:criar-admin
 ```
 
-Acesse http://localhost:8090 e entre com o administrador criado.
+Acesse http://localhost:8090 e entre com o administrador criado. O serviço `scheduler` do Compose roda o agendador do Laravel (equivalente ao cron de produção), que gera todo dia as manutenções previstas dos planos.
 
 | Ação | Comando |
 |---|---|
 | Testes | `docker compose exec app php artisan test` |
 | Formatar código | `docker compose exec app ./vendor/bin/pint` |
 | Recriar o banco | `docker compose exec app php artisan migrate:fresh --seed` |
+| Gerar previstas agora | `docker compose exec app php artisan manutencoes:estender-horizonte` |
 
 As portas podem ser trocadas no `.env` (`APP_PORT`, `FORWARD_DB_PORT`).
 

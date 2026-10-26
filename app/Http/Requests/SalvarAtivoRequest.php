@@ -53,11 +53,32 @@ class SalvarAtivoRequest extends FormRequest
             'observacoes' => ['nullable', 'string', 'max:2000'],
             'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'remover_foto' => ['boolean'],
+            'confirmar_cancelamento' => [Rule::when($this->vaiCancelarPendentes(), ['accepted'], ['nullable'])],
         ];
     }
 
     public function messages(): array
     {
-        return ['patrimonio.unique' => 'Este número de patrimônio já está em uso (inclusive por ativo excluído).'];
+        return [
+            'patrimonio.unique' => 'Este número de patrimônio já está em uso (inclusive por ativo excluído).',
+            'confirmar_cancelamento.accepted' => 'Confirme o cancelamento das manutenções pendentes para tirar o ativo de operação.',
+        ];
+    }
+
+    /** Somente os campos do ativo (foto e confirmações são tratadas à parte). */
+    public function dados(): array
+    {
+        return $this->safe()->except(['foto', 'remover_foto', 'confirmar_cancelamento']);
+    }
+
+    private function vaiCancelarPendentes(): bool
+    {
+        /** @var Ativo|null $ativo */
+        $ativo = $this->route('ativo');
+
+        return $ativo
+            && $ativo->emOperacao()
+            && $this->input('status') !== StatusAtivo::EmOperacao->value
+            && $ativo->manutencoes()->pendentes()->exists();
     }
 }

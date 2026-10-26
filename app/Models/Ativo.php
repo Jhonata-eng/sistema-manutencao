@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -49,6 +50,21 @@ class Ativo extends Model
     public function criador(): BelongsTo
     {
         return $this->belongsTo(User::class, 'criado_por');
+    }
+
+    public function planos(): HasMany
+    {
+        return $this->hasMany(PlanoManutencao::class);
+    }
+
+    public function manutencoes(): HasMany
+    {
+        return $this->hasMany(Manutencao::class);
+    }
+
+    public function emOperacao(): bool
+    {
+        return $this->status === StatusAtivo::EmOperacao;
     }
 
     /** Escopo de dados: só ativos das cidades do usuário, salvo dados.ver_todas_cidades. */

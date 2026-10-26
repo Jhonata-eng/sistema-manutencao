@@ -17,6 +17,10 @@
                 <div class="col-md-4">
                     <x-selecao name="status" label="Status" :opcoes="\App\Enums\StatusAtivo::opcoes()" :value="$ativo->status?->value" vazio="" required />
                 </div>
+                <div class="col-12">
+                    <x-confirmacao-cancelamento :pendentes="$pendentes" exibir-se="#status" valores="inativo,baixado"
+                                                mensagem="Ao tirar o ativo de operação, os planos serão inativados e" />
+                </div>
                 <div class="col-md-4"><x-campo name="marca" label="Marca" :value="$ativo->marca" required maxlength="60" /></div>
                 <div class="col-md-4"><x-campo name="modelo" label="Modelo" :value="$ativo->modelo" required maxlength="100" /></div>
                 <div class="col-md-4"><x-campo name="numero_serie" label="Número de série" :value="$ativo->numero_serie" maxlength="100" /></div>

@@ -10,7 +10,8 @@
         @endcan
         @can('delete', $ativo)
             <x-botao-excluir :acao="route('ativos.destroy', $ativo)" rotulo="Excluir"
-                             :confirmar="'Excluir o ativo '.$ativo->patrimonio.'? O histórico continua nos relatórios.'" />
+                             :confirmar="'Excluir o ativo '.$ativo->patrimonio.'? O histórico continua nos relatórios.'
+                                 .($pendentes ? ' Os planos serão inativados e '.$pendentes.' manutenção(ões) pendente(s) cancelada(s).' : '')" />
         @endcan
     </x-cabecalho>
 
@@ -48,4 +49,48 @@
             </div>
         </div>
     </div>
+
+    @can('planos.visualizar')
+        <div class="card mb-3">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <span class="fw-semibold">Planos de manutenção</span>
+                @can('create', [\App\Models\PlanoManutencao::class, $ativo])
+                    @if ($ativo->emOperacao())
+                        <a href="{{ route('ativos.planos.create', $ativo) }}" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Novo plano</a>
+                    @endif
+                @endcan
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>Serviço</th>
+                        <th>Periodicidade</th>
+                        <th>Próxima</th>
+                        <th class="text-end">Valor estimado</th>
+                        <th>Situação</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @forelse ($planos as $plano)
+                        <tr>
+                            <td><a href="{{ route('planos.show', $plano) }}">{{ $plano->descricao }}</a></td>
+                            <td>{{ $plano->rotuloPeriodicidade() }}</td>
+                            <td class="text-nowrap">{{ data_br($plano->proxima_ocorrencia) ?: '—' }}</td>
+                            <td class="text-end text-nowrap">{{ moeda($plano->valor_estimado) }}</td>
+                            <td><x-situacao :ativo="$plano->ativo" /></td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="text-center text-body-secondary py-4">
+                                Nenhum plano cadastrado.
+                                @unless ($ativo->emOperacao()) Planos só podem ser criados para ativos em operação. @endunless
+                            </td>
+                        </tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endcan
 @endsection
