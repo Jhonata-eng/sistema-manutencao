@@ -17,7 +17,9 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    // O sistema usa recursos do MySQL/MariaDB (DATE_FORMAT, dicas de índice): sem DB_CONNECTION no .env,
+    // cai no MySQL e falha com erro de conexão claro, em vez de criar um banco SQLite silenciosamente.
+    'default' => env('DB_CONNECTION', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------

@@ -23,7 +23,7 @@ O exemplo usa Ubuntu 24.04, Nginx e PHP-FPM; a seção [Apache](#apache) mostra 
 |---|---|
 | PHP | **8.3 ou superior** (o Laravel 13 exige 8.3), com PHP-FPM |
 | Extensões PHP | `mbstring`, `xml`, `curl`, `zip`, `mysql` (pdo_mysql), `intl`, `bcmath`, `fileinfo` (confere o tipo real dos anexos), `opcache` |
-| Banco | MySQL 8.0+ ou MariaDB 10.6+ (`utf8mb4`) |
+| Banco | MySQL 8.0+ ou MariaDB 10.6+ (`utf8mb4`). **SQLite não é suportado** (o painel usa funções do MySQL) |
 | Servidor web | Nginx ou Apache 2.4 |
 | Outros | Composer 2, `git`, `unzip`, `cron` |
 
@@ -66,7 +66,9 @@ APP_DEBUG=false
 APP_URL=https://manutencao.suaempresa.com.br
 APP_TIMEZONE=America/Sao_Paulo
 
+DB_CONNECTION=mysql        # use mariadb se o servidor for MariaDB; SQLite não é suportado
 DB_HOST=127.0.0.1
+DB_PORT=3306
 DB_DATABASE=manutencao
 DB_USERNAME=manutencao
 DB_PASSWORD=troque-esta-senha
